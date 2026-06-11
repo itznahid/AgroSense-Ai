@@ -77,11 +77,12 @@ TEMPLATES = [
 WSGI_APPLICATION = "CropReco.wsgi.application"
 
 # ── Database ──────────────────────────────────────────────────────────────────
+import dj_database_url
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default="sqlite:///db.sqlite3"
+    )
 }
 # For production, switch to PostgreSQL:
 # DATABASES = {
