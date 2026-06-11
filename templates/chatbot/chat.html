@@ -387,12 +387,6 @@ html, body { overflow: hidden; height: 100%; }
       </div>
       {% endif %}
 
-      {#
-        Existing messages in this session are rendered by the DOMContentLoaded
-        handler below via INITIAL_MESSAGES (a JSON array injected by Django).
-        This avoids duplicating the JS bubble templates in server-side markup
-        while still giving users their history immediately on page load.
-      #}
 
     </div>
 
