@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} API Key — AgroSense AI Admin{% endblock %}
+
+{% block content %}
+<div style="max-width:560px;margin:40px auto;padding:0 16px;">
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,.06);">
+
+    <h2 style="margin:0 0 24px;color:#1e293b;">🔑 {{ action }} Gemini API Key</h2>
+
+    {% if messages %}
+      {% for msg in messages %}
+        <div style="background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;margin-bottom:16px;">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div style="margin-bottom:18px;">
+        <label style="font-weight:600;font-size:.9rem;color:#374151;display:block;margin-bottom:6px;">Key Name *</label>
+        <input type="text" name="name" value="{{ key.name|default:'' }}"
+               placeholder="e.g. Primary Key, Backup Key 1"
+               style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;"
+               required>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="font-weight:600;font-size:.9rem;color:#374151;display:block;margin-bottom:6px;">
+          API Key *
+          {% if key %}
+            <span style="font-weight:400;color:#64748b;font-size:.8rem;">(leave blank to keep current)</span>
+          {% endif %}
+        </label>
+        <input type="password" name="api_key" value=""
+               placeholder="{% if key %}Leave blank to keep current value{% else %}AIzaSy...{% endif %}"
+               {% if not key %}required{% endif %}
+               style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-family:monospace;">
+        {% if key %}
+          <div style="font-size:.78rem;color:#94a3b8;margin-top:4px;">Current: {{ key.masked_key }}</div>
+        {% endif %}
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="font-weight:600;font-size:.9rem;color:#374151;display:block;margin-bottom:6px;">Priority *</label>
+        <select name="priority"
+                style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;">
+          <option value="1" {% if key.priority == 1 %}selected{% endif %}>1 — Primary (used first)</option>
+          <option value="2" {% if not key or key.priority == 2 %}selected{% endif %}>2 — Secondary (first backup)</option>
+          <option value="3" {% if key.priority == 3 %}selected{% endif %}>3 — Emergency (last resort)</option>
+        </select>
+      </div>
+
+      {% if key %}
+      <div style="margin-bottom:18px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" name="is_active" {% if key.is_active %}checked{% endif %}
+                 style="width:16px;height:16px;">
+          <span style="font-weight:600;font-size:.9rem;color:#374151;">Active (use this key)</span>
+        </label>
+      </div>
+      {% endif %}
+
+      <div style="margin-bottom:24px;">
+        <label style="font-weight:600;font-size:.9rem;color:#374151;display:block;margin-bottom:6px;">Notes</label>
+        <textarea name="notes" rows="2"
+                  placeholder="Optional: quota limit, project name, rotation schedule..."
+                  style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:.9rem;resize:vertical;">{{ key.notes|default:'' }}</textarea>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <button type="submit"
+                style="flex:1;padding:12px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:.95rem;cursor:pointer;">
+          {{ action }} Key
+        </button>
+        <a href="{% url 'ai_admin:dashboard' %}"
+           style="flex:1;padding:12px;background:#f1f5f9;color:#475569;border-radius:8px;font-weight:600;font-size:.95rem;text-align:center;text-decoration:none;">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

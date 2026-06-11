@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AI Monitoring Dashboard — AgroSense Enterprise{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --ai-primary: #16a34a;
+    --ai-dark:    #14532d;
+    --ai-card:    #f0fdf4;
+    --ai-border:  #bbf7d0;
+  }
+
+  .ai-dash { background: #f8fafc; min-height: 100vh; padding: 24px; }
+
+  /* ── Header ── */
+  .dash-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 28px;
+  }
+  .dash-header h1 { font-size: 1.6rem; font-weight: 700; color: #1e293b; margin: 0; }
+  .health-badge {
+    padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: .85rem;
+  }
+  .health-badge.success { background: #dcfce7; color: #166534; }
+  .health-badge.warning { background: #fef9c3; color: #854d0e; }
+  .health-badge.danger  { background: #fee2e2; color: #991b1b; }
+
+  /* ── KPI Cards ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .kpi-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 20px 18px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .kpi-card .kpi-value { font-size: 2rem; font-weight: 700; color: #1e293b; }
+  .kpi-card .kpi-label { font-size: .78rem; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+  .kpi-card.green .kpi-value { color: #16a34a; }
+  .kpi-card.red   .kpi-value { color: #dc2626; }
+  .kpi-card.blue  .kpi-value { color: #2563eb; }
+  .kpi-card.orange .kpi-value { color: #ea580c; }
+
+  /* ── 2-col layout ── */
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+
+  /* ── Panels ── */
+  .panel {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .panel h3 { font-size: 1rem; font-weight: 600; color: #374151; margin: 0 0 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+
+  /* ── Tables ── */
+  .mini-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .mini-table th { text-align: left; color: #64748b; font-weight: 600; padding: 6px 8px; font-size: .75rem; text-transform: uppercase; }
+  .mini-table td { padding: 8px; border-top: 1px solid #f1f5f9; }
+  .mini-table tr:hover td { background: #f8fafc; }
+
+  /* ── Key cards ── */
+  .key-cards { display: flex; flex-direction: column; gap: 12px; }
+  .key-card {
+    border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .key-card.active  { border-color: #86efac; background: #f0fdf4; }
+  .key-card.inactive { border-color: #e2e8f0; background: #f8fafc; opacity: .75; }
+  .key-priority {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .85rem;
+    background: var(--ai-primary); color: #fff; flex-shrink: 0;
+  }
+  .key-name { font-weight: 600; font-size: .9rem; color: #1e293b; }
+  .key-masked { font-size: .78rem; color: #64748b; font-family: monospace; }
+  .key-rate { font-weight: 700; font-size: 1rem; }
+  .rate-high   { color: #16a34a; }
+  .rate-medium { color: #d97706; }
+  .rate-low    { color: #dc2626; }
+  .key-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* ── Buttons ── */
+  .btn-xs {
+    padding: 4px 10px; border-radius: 6px; font-size: .75rem;
+    font-weight: 500; border: 1px solid; cursor: pointer; text-decoration: none;
+    transition: all .15s;
+  }
+  .btn-green  { background: #dcfce7; color: #166534; border-color: #86efac; }
+  .btn-green:hover  { background: #bbf7d0; }
+  .btn-red    { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+  .btn-red:hover    { background: #fecaca; }
+  .btn-blue   { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+  .btn-blue:hover   { background: #bfdbfe; }
+  .btn-gray   { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+  .btn-gray:hover   { background: #e2e8f0; }
+  .btn-add {
+    padding: 10px 22px; border-radius: 8px; background: var(--ai-primary);
+    color: #fff; font-weight: 600; font-size: .9rem; border: none; cursor: pointer;
+    text-decoration: none; display: inline-block;
+  }
+  .btn-add:hover { background: var(--ai-dark); color: #fff; }
+
+  /* ── Status dots ── */
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .dot-green { background: #22c55e; }
+  .dot-red   { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
+  .dot-pulse { animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+  /* ── Error log ── */
+  .err-row td { font-family: monospace; font-size: .78rem; }
+  .err-type { color: #dc2626; font-weight: 600; }
+
+  /* ── Live refresh bar ── */
+  .live-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 10px 16px; margin-bottom: 20px; font-size: .85rem; color: #475569;
+  }
+  .live-val { font-weight: 700; color: #1e293b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ai-dash">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="dash-header">
+    <div>
+      <h1>🤖 AgroSense AI Monitoring</h1>
+      <p style="color:#64748b;margin:2px 0 0;font-size:.85rem;">Last 24 hours • Auto-refreshes every 30 s</p>
+    </div>
+    <span class="health-badge {{ health_class }}">
+      <span class="dot {% if health_class == 'success' %}dot-green dot-pulse{% else %}dot-red{% endif %}"></span>
+      {{ health_status }}
+    </span>
+  </div>
+
+  <!-- ── Live 5-min bar ─────────────────────────────────────────────────── -->
+  <div class="live-bar" id="liveBar">
+    <span class="dot dot-green dot-pulse"></span>
+    <span>Last 5 min:</span>
+    <span>Calls: <span class="live-val" id="lv-calls">–</span></span>
+    <span>•</span>
+    <span>Success: <span class="live-val" id="lv-ok">–</span></span>
+    <span>•</span>
+    <span>Fails: <span class="live-val" id="lv-fail">–</span></span>
+    <span>•</span>
+    <span>Failovers: <span class="live-val" id="lv-fo">–</span></span>
+    <span>•</span>
+    <span>Avg Latency: <span class="live-val" id="lv-lat">–</span> ms</span>
+    <span>•</span>
+    <span>Active Key: <strong id="lv-key">–</strong></span>
+  </div>
+
+  <!-- ── KPI Cards ──────────────────────────────────────────────────────── -->
+  <div class="kpi-grid">
+    <div class="kpi-card green">
+      <div class="kpi-value">{{ total_calls }}</div>
+      <div class="kpi-label">Total Calls (24h)</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-value">{{ success_rate }}%</div>
+      <div class="kpi-label">Success Rate</div>
+    </div>
+    <div class="kpi-card {% if fail_cnt > 0 %}red{% else %}green{% endif %}">
+      <div class="kpi-value">{{ fail_cnt }}</div>
+      <div class="kpi-label">Failed Calls</div>
+    </div>
+    <div class="kpi-card {% if failovers > 0 %}orange{% else %}green{% endif %}">
+      <div class="kpi-value">{{ failovers }}</div>
+      <div class="kpi-label">Failover Events</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-value">{{ avg_latency }}ms</div>
+      <div class="kpi-label">Avg Latency</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">{{ keys_data|length }}</div>
+      <div class="kpi-label">API Keys</div>
+    </div>
+  </div>
+
+  <!-- ── Hourly Chart + Agent Stats ─────────────────────────────────────── -->
+  <div class="dash-grid">
+    <div class="panel">
+      <h3>📈 Hourly Call Volume (24h)</h3>
+      <canvas id="callChart" height="200"></canvas>
+    </div>
+    <div class="panel">
+      <h3>🤖 Agent Usage</h3>
+      <table class="mini-table">
+        <thead>
+          <tr><th>Agent</th><th>Calls</th><th>Avg Latency</th></tr>
+        </thead>
+        <tbody>
+          {% for a in agent_stats %}
+          <tr>
+            <td><code>{{ a.agent_type|default:"(general)" }}</code></td>
+            <td><strong>{{ a.calls }}</strong></td>
+            <td>{{ a.avg_lat }} ms</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="color:#94a3b8;text-align:center;">No calls yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Model Usage + Error Log ────────────────────────────────────────── -->
+  <div class="dash-grid">
+    <div class="panel">
+      <h3>🧠 Model Usage</h3>
+      <table class="mini-table">
+        <thead><tr><th>Model</th><th>Calls</th><th>Success</th></tr></thead>
+        <tbody>
+          {% for m in model_stats %}
+          <tr>
+            <td><strong>{{ m.model_used }}</strong></td>
+            <td>{{ m.calls }}</td>
+            <td style="color:#16a34a;">{{ m.successes }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="color:#94a3b8;text-align:center;">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <h3>⚠️ Recent Errors (24h)</h3>
+      <div style="max-height:220px;overflow-y:auto;">
+        <table class="mini-table">
+          <thead><tr><th>Time</th><th>Model</th><th>Agent</th><th>Error</th></tr></thead>
+          <tbody>
+            {% for e in recent_errors %}
+            <tr class="err-row">
+              <td>{{ e.timestamp|date:"H:i" }}</td>
+              <td>{{ e.model_used }}</td>
+              <td>{{ e.agent_type|default:"–" }}</td>
+              <td class="err-type">{{ e.error_type|truncatechars:30 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="color:#16a34a;text-align:center;">✅ No errors</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── API Key Management ─────────────────────────────────────────────── -->
+  <div class="panel" style="margin-bottom:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 style="margin:0;border:none;padding:0;">🔑 Gemini API Key Management</h3>
+      <a href="{% url 'ai_admin:key_add' %}" class="btn-add">+ Add Key</a>
+    </div>
+
+    <div class="key-cards">
+      {% for kd in keys_data %}
+      {% with k=kd.obj %}
+      <div class="key-card {% if k.is_active %}active{% else %}inactive{% endif %}">
+        <div class="key-priority">{{ k.priority }}</div>
+        <div style="flex:1;">
+          <div class="key-name">{{ k.name }}</div>
+          <div class="key-masked">{{ k.masked_key }}</div>
+          {% if k.notes %}<div style="font-size:.75rem;color:#64748b;margin-top:2px;">{{ k.notes }}</div>{% endif %}
+        </div>
+        <div style="text-align:center;min-width:80px;">
+          <div class="key-rate {% if kd.success_rate >= 95 %}rate-high{% elif kd.success_rate >= 80 %}rate-medium{% else %}rate-low{% endif %}">
+            {{ kd.success_rate }}%
+          </div>
+          <div style="font-size:.72rem;color:#94a3b8;">success rate</div>
+          <div style="font-size:.72rem;color:#64748b;">{{ kd.calls_24h }} calls / {{ kd.failures_24h }} fails</div>
+        </div>
+        <div class="key-actions">
+          <button class="btn-xs btn-blue" onclick="testKey({{ k.pk }}, '{{ k.name }}')">Test</button>
+          <a href="{% url 'ai_admin:key_edit' k.pk %}" class="btn-xs btn-gray">Edit</a>
+          <form method="post" action="{% url 'ai_admin:key_toggle' k.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button class="btn-xs {% if k.is_active %}btn-red{% else %}btn-green{% endif %}">
+              {% if k.is_active %}Disable{% else %}Enable{% endif %}
+            </button>
+          </form>
+          <form method="post" action="{% url 'ai_admin:key_delete' k.pk %}" style="display:inline;"
+                onsubmit="return confirm('Delete key \'{{ k.name }}\'? This cannot be undone.');">
+            {% csrf_token %}
+            <button class="btn-xs btn-red">Delete</button>
+          </form>
+        </div>
+      </div>
+      {% endwith %}
+      {% empty %}
+      <div style="text-align:center;padding:30px;color:#94a3b8;">
+        No API keys configured yet.
+        <a href="{% url 'ai_admin:key_add' %}" style="color:var(--ai-primary);font-weight:600;">Add your first key →</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── Failover Timeline ──────────────────────────────────────────────── -->
+  {% if failover_events %}
+  <div class="panel">
+    <h3>🔄 Failover Timeline (Last 50 Events)</h3>
+    <div style="max-height:260px;overflow-y:auto;">
+      <table class="mini-table">
+        <thead>
+          <tr><th>Time</th><th>Key #</th><th>Model</th><th>Agent</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          {% for ev in failover_events %}
+          <tr>
+            <td>{{ ev.timestamp|date:"M d H:i:s" }}</td>
+            <td>Key {{ ev.key_index|add:1 }}</td>
+            <td><code>{{ ev.model_used }}</code></td>
+            <td>{{ ev.agent_type|default:"–" }}</td>
+            <td>{% if ev.success %}<span style="color:#16a34a;">✅ Success</span>{% else %}<span style="color:#dc2626;">❌ Failed</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- ── Test Key Modal ───────────────────────────────────────────────────── -->
+<div id="testModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:30px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <h3 id="modalTitle" style="margin:0 0 16px;font-size:1.1rem;">Testing Key…</h3>
+    <div id="modalBody" style="color:#475569;font-size:.9rem;min-height:60px;display:flex;align-items:center;">
+      <span id="spinner" style="margin-right:10px;">⏳</span>
+      <span id="modalMsg">Connecting to Gemini API…</span>
+    </div>
+    <button onclick="document.getElementById('testModal').style.display='none'"
+            class="btn-add" style="margin-top:20px;width:100%;">Close</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── Hourly Call Chart ────────────────────────────────────────────────────────
+const labels  = {{ chart_labels|safe }};
+const total   = {{ chart_total|safe }};
+const success = {{ chart_success|safe }};
+
+if (labels.length) {
+  const ctx = document.getElementById("callChart").getContext("2d");
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Total",   data: total,   borderColor: "#94a3b8", fill: false, tension: .3, pointRadius: 3 },
+        { label: "Success", data: success, borderColor: "#16a34a", backgroundColor: "rgba(22,163,74,.08)", fill: true, tension: .3, pointRadius: 3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: "top" } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+    },
+  });
+}
+
+// ── Test Key Modal ───────────────────────────────────────────────────────────
+function testKey(pk, name) {
+  const modal = document.getElementById("testModal");
+  document.getElementById("modalTitle").textContent = "Testing: " + name;
+  document.getElementById("modalMsg").textContent   = "Connecting to Gemini API…";
+  document.getElementById("spinner").textContent    = "⏳";
+  modal.style.display = "flex";
+
+  fetch(`/ai-admin/keys/${pk}/test/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": getCookie("csrftoken") },
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById("spinner").textContent  = data.success ? "✅" : "❌";
+    document.getElementById("modalMsg").textContent = data.message;
+  })
+  .catch(() => {
+    document.getElementById("spinner").textContent  = "❌";
+    document.getElementById("modalMsg").textContent = "Request failed. Check server logs.";
+  });
+}
+
+// ── Live Stats Polling ───────────────────────────────────────────────────────
+function refreshLiveStats() {
+  fetch("{% url 'ai_admin:live_stats' %}")
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById("lv-calls").textContent = d.calls_5m;
+      document.getElementById("lv-ok").textContent    = d.success_5m;
+      document.getElementById("lv-fail").textContent  = d.fail_5m;
+      document.getElementById("lv-fo").textContent    = d.failovers_5m;
+      document.getElementById("lv-lat").textContent   = d.avg_lat_5m;
+      document.getElementById("lv-key").textContent   = d.active_key;
+    })
+    .catch(() => {});
+}
+refreshLiveStats();
+setInterval(refreshLiveStats, 30000);
+
+// ── CSRF helper ──────────────────────────────────────────────────────────────
+function getCookie(name) {
+  let v = null;
+  if (document.cookie) {
+    document.cookie.split(";").forEach(c => {
+      const [k, val] = c.trim().split("=");
+      if (k === name) v = decodeURIComponent(val);
+    });
+  }
+  return v;
+}
+</script>
+{% endblock %}

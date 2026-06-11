@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Sign In – AgroSense{% endblock %}
+
+{% block content %}
+<div class="fixed top-20 left-10 w-80 h-80 rounded-full blur-[100px] opacity-20 pointer-events-none" style="background:#10B981;z-index:1"></div>
+<div class="fixed bottom-10 right-10 w-96 h-96 rounded-full blur-[120px] opacity-10 pointer-events-none" style="background:#38BDF8;z-index:1"></div>
+
+<div class="min-h-screen flex items-center justify-center px-4 pt-28 pb-16 relative z-10">
+  <div class="w-full max-w-md animate-fade-in">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#10B981] to-[#065F46] flex items-center justify-center mx-auto mb-5 shadow-[0_0_24px_rgba(16,185,129,0.4)]">
+        <i data-lucide="leaf" class="w-8 h-8 text-white"></i>
+      </div>
+      <h1 class="text-3xl font-extrabold text-white tracking-tight mb-2">Welcome back</h1>
+      <p class="text-slate-400 text-sm">Sign in to your <span class="text-[#10B981] font-semibold">AgroSense</span> account</p>
+    </div>
+
+    <!-- Card -->
+    <div class="auth-card rounded-3xl p-8">
+
+      <!-- Django messages -->
+      {% for msg in messages %}
+      <div class="mb-5 flex items-start gap-2.5 p-3.5 rounded-xl
+                  {% if msg.tags == 'error' %}bg-red-500/10 border border-red-500/30{% else %}bg-[#10B981]/10 border border-[#10B981]/30{% endif %}">
+        <i data-lucide="{% if msg.tags == 'error' %}alert-circle{% else %}check-circle{% endif %}"
+           class="w-4 h-4 {% if msg.tags == 'error' %}text-red-400{% else %}text-[#10B981]{% endif %} shrink-0 mt-0.5"></i>
+        <p class="text-sm {% if msg.tags == 'error' %}text-red-400{% else %}text-slate-300{% endif %}">{{ msg }}</p>
+      </div>
+      {% endfor %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <!-- Username -->
+        <div class="mb-5">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Username</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"><i data-lucide="at-sign" class="w-4 h-4"></i></span>
+            <input type="text" name="username"
+                   placeholder="Your username" autocomplete="username"
+                   class="auth-input pl-10 {% if error %}border-red-500/60{% endif %}" autofocus>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="mb-6">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Password</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"><i data-lucide="lock" class="w-4 h-4"></i></span>
+            <input type="password" name="password" id="pwd"
+                   placeholder="Your password" autocomplete="current-password"
+                   class="auth-input pl-10 pr-10 {% if error %}border-red-500/60{% endif %}">
+            <button type="button" onclick="togglePwd()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+              <i data-lucide="eye" id="eye-icon" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        {% if error %}
+        <div class="mb-5 flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-red-400 shrink-0 mt-0.5"></i>
+          <p class="text-red-400 text-sm">{{ error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Submit -->
+        <button type="submit"
+                class="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.55)] hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
+          <i data-lucide="log-in" class="w-5 h-5"></i> Sign In
+        </button>
+
+        <p class="text-center mt-5 text-sm text-slate-500">
+          Don't have an account?
+          <a href="{% url 'accounts:register' %}" class="text-[#10B981] font-semibold hover:underline ml-1">Create one free →</a>
+        </p>
+      </form>
+    </div>
+
+    <!-- Trust badges -->
+    <div class="flex justify-center gap-6 mt-6 text-slate-600 text-xs">
+      <span class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-[#10B981]"></i> Secure login</span>
+      <span class="flex items-center gap-1.5"><i data-lucide="lock" class="w-3.5 h-3.5 text-[#10B981]"></i> Encrypted</span>
+      <span class="flex items-center gap-1.5"><i data-lucide="leaf" class="w-3.5 h-3.5 text-[#10B981]"></i> Trusted by 50k+</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePwd() {
+  const inp  = document.getElementById('pwd');
+  const icon = document.getElementById('eye-icon');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  icon.setAttribute('data-lucide', show ? 'eye-off' : 'eye');
+  lucide.createIcons();
+}
+</script>
+{% endblock %}

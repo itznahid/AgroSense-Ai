@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Delete Product – AgroSense{% endblock %}
+
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10 flex items-center justify-center">
+<div class="max-w-md w-full">
+  <div class="glass-card rounded-2xl p-8 text-center">
+    <div class="w-16 h-16 rounded-2xl bg-red-500/15 flex items-center justify-center mx-auto mb-5">
+      <i data-lucide="trash-2" class="w-8 h-8 text-red-400"></i>
+    </div>
+    <h1 class="text-xl font-extrabold text-white mb-2">Delete Product?</h1>
+    <p class="text-slate-400 text-sm mb-1">
+      You are about to permanently delete:
+    </p>
+    <p class="text-white font-bold mb-1">{{ product.icon }} {{ product.name }}</p>
+    <p class="text-slate-500 text-xs mb-6">This action cannot be undone.</p>
+
+    <div class="flex gap-3">
+      <!-- POST form – CSRF protected, ownership checked server-side -->
+      <form method="post" class="flex-1">
+        {% csrf_token %}
+        <button type="submit"
+                class="w-full py-3 rounded-xl font-semibold text-white
+                       bg-red-500/80 hover:bg-red-500 transition-all">
+          Yes, Delete
+        </button>
+      </form>
+      <a href="{% url 'accounts:merchant_shop' %}"
+         class="flex-1 py-3 rounded-xl font-semibold text-slate-300 text-center
+                bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+        Cancel
+      </a>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

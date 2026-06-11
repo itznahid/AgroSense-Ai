@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}My Orders – AgroSense{% endblock %}
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-4xl mx-auto">
+
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-[#10B981]/15 flex items-center justify-center">
+        <i data-lucide="package" class="w-5 h-5 text-[#10B981]"></i>
+      </div>
+      <h1 class="text-2xl font-extrabold text-white">My Orders</h1>
+    </div>
+    <a href="{% url 'accounts:user_dashboard' %}" class="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard
+    </a>
+  </div>
+
+  {% if orders %}
+  <div class="space-y-4">
+    {% for order in orders %}
+    <a href="{% url 'accounts:user_order_detail' order.pk %}" class="block glass-card rounded-2xl p-5 hover:border-[#10B981]/40 transition-all animate-fade-in">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="font-bold text-white text-sm">Order #{{ order.pk }}</p>
+          <p class="text-xs text-slate-500 mt-0.5">{{ order.created_at|date:"N j, Y" }} · {{ order.items.count }} item{{ order.items.count|pluralize }}</p>
+        </div>
+        <div class="text-right">
+          <p class="font-extrabold text-[#10B981]">৳{{ order.total_amount }}</p>
+          <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold
+            {% if order.status == 'delivered' %}bg-[#10B981]/20 text-[#10B981]
+            {% elif order.status == 'cancelled' %}bg-red-500/20 text-red-400
+            {% elif order.status == 'shipped' %}bg-blue-500/20 text-blue-400
+            {% else %}bg-[#f59e0b]/20 text-[#f59e0b]{% endif %}">
+            {{ order.get_status_display }}
+          </span>
+        </div>
+      </div>
+      <div class="mt-3 flex gap-2 flex-wrap">
+        {% for item in order.items.all|slice:":3" %}
+        <span class="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-400">{{ item.product_name }}</span>
+        {% endfor %}
+        {% if order.items.count > 3 %}<span class="text-xs text-slate-500">+{{ order.items.count|add:"-3" }} more</span>{% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="glass-card rounded-3xl p-14 text-center">
+    <div class="w-16 h-16 rounded-2xl bg-[#10B981]/10 flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="package" class="w-8 h-8 text-[#10B981]"></i>
+    </div>
+    <h2 class="text-lg font-bold text-white mb-2">No orders yet</h2>
+    <p class="text-slate-500 text-sm mb-5">Your completed orders will appear here.</p>
+    <a href="{% url 'marketplace' %}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-gradient-to-r from-[#10B981] to-[#059669] text-sm hover:scale-105 transition-all">
+      <i data-lucide="shopping-bag" class="w-4 h-4"></i> Browse Marketplace
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+</div>
+{% endblock %}

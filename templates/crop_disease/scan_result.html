@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Disease Scan #{{ scan.pk }} — AgroSense{% endblock %}
+
+{% block extra_inline_css %}
+.result-wrap { max-width: 900px; margin: 0 auto; padding: 100px 16px 60px; }
+.result-card {
+  background: rgba(4,37,20,0.5);
+  border: 1px solid rgba(16,185,129,0.18);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.badge-sev {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 700;
+}
+.sev-red    { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.sev-orange { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+.sev-yellow { background: rgba(234,179,8,0.12);  color: #fbbf24; border: 1px solid rgba(234,179,8,0.3); }
+.sev-blue   { background: rgba(56,189,248,0.12); color: #38BDF8; border: 1px solid rgba(56,189,248,0.3); }
+.sev-green  { background: rgba(16,185,129,0.15); color: #10B981; border: 1px solid rgba(16,185,129,0.3); }
+.sev-slate  { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
+.info-grid { display: grid; gap: 12px; }
+.info-block {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 14px 16px;
+}
+.info-block h4 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+.info-block ul { padding-left: 16px; margin: 0; }
+.info-block li { font-size: 0.82rem; color: #cbd5e1; margin-bottom: 4px; line-height: 1.5; }
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 12px; margin-top: 12px; }
+.prod-card {
+  background: rgba(4,37,20,0.6); border: 1px solid rgba(16,185,129,0.18);
+  border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 6px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.prod-card:hover { border-color: rgba(16,185,129,0.4); transform: translateY(-2px); }
+{% endblock %}
+
+{% block content %}
+<div class="result-wrap">
+
+  {% if scan.is_not_plant_error %}
+  <!-- ── Not a plant ──────────────────────────────────────────────────────── -->
+  <div class="result-card p-8 text-center">
+    <div class="text-6xl mb-4">🌿</div>
+    <h2 class="text-xl font-bold text-white mb-2">No Plant Detected</h2>
+    <p class="text-slate-400 text-sm max-w-md mx-auto mb-6">
+      The uploaded image doesn't appear to show a plant or crop leaf.
+      Please upload a <strong class="text-white">clear, close-up photo of a leaf</strong>.
+    </p>
+    <div class="grid grid-cols-2 gap-4 max-w-sm mx-auto mb-6">
+      <div class="info-block text-center">
+        <div class="text-2xl mb-1">✅</div>
+        <p class="text-xs font-semibold text-[#10B981]">Good</p>
+        <p class="text-xs text-slate-400">Close-up leaf, clear background</p>
+      </div>
+      <div class="info-block text-center">
+        <div class="text-2xl mb-1">❌</div>
+        <p class="text-xs font-semibold text-red-400">Won't work</p>
+        <p class="text-xs text-slate-400">People, objects, blurry shots</p>
+      </div>
+    </div>
+    <a href="{% url 'crop_disease:scan_upload' %}"
+       class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-semibold text-sm hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all">
+      Try Again
+    </a>
+  </div>
+
+  {% elif scan.status == "failed" %}
+  <!-- ── Generic error ────────────────────────────────────────────────────── -->
+  <div class="result-card p-8 text-center">
+    <div class="text-5xl mb-4">⚠️</div>
+    <h2 class="text-xl font-bold text-red-400 mb-2">Analysis Failed</h2>
+    <p class="text-slate-400 text-sm mb-6">{{ scan.error_message }}</p>
+    <a href="{% url 'crop_disease:scan_upload' %}"
+       class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-semibold text-sm transition-all">
+      Try Again
+    </a>
+  </div>
+
+  {% else %}
+  <!-- ── Success ───────────────────────────────────────────────────────────── -->
+  <div class="result-card">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-6 py-5 border-b border-white/5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#10B981] to-[#065F46] flex items-center justify-center flex-shrink-0">
+          <i data-lucide="scan-line" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white">Scan #{{ scan.pk }}</h1>
+          <p class="text-xs text-slate-400">{{ scan.uploaded_at|date:"d M Y, H:i" }} — Analysed by Gemini Vision</p>
+        </div>
+      </div>
+      {% if scan.is_healthy %}
+        <span class="badge-sev sev-green">✅ Healthy Plant</span>
+      {% else %}
+        <span class="badge-sev sev-red">⚠️ Disease Detected</span>
+      {% endif %}
+    </div>
+
+    <div class="grid md:grid-cols-5 gap-0">
+
+      <!-- Image panel -->
+      <div class="md:col-span-2 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-white/5">
+        <img src="{{ scan.image.url }}" alt="Scanned crop image"
+             class="w-full max-w-xs rounded-2xl object-contain shadow-xl"
+             style="max-height:280px;">
+        <div class="mt-4 flex flex-wrap gap-2 justify-center">
+          <span class="text-xs px-3 py-1 rounded-full border border-white/10 text-slate-400">
+            🌾 {{ scan.crop_name|default:"Unknown crop" }}
+          </span>
+          <span class="badge-sev sev-{{ scan.severity_badge_color }}">
+            {{ scan.severity|default:"Unknown" }} severity
+          </span>
+        </div>
+      </div>
+
+      <!-- Results panel -->
+      <div class="md:col-span-3 p-6 flex flex-col gap-4">
+
+        <div>
+          <h2 class="text-2xl font-bold text-white mb-1">{{ scan.predicted_class|default:"Analysis complete" }}</h2>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-slate-400">Confidence:</span>
+            <span class="text-sm font-bold
+              {% if scan.confidence == 'High' %}text-[#10B981]
+              {% elif scan.confidence == 'Medium' %}text-[#fbbf24]
+              {% else %}text-[#94a3b8]{% endif %}">
+              {{ scan.confidence_display }}
+            </span>
+          </div>
+        </div>
+
+        {% if scan.additional_notes %}
+        <div class="info-block">
+          <h4 class="text-[#38BDF8]">📌 Notes</h4>
+          <p class="text-sm text-slate-300">{{ scan.additional_notes }}</p>
+        </div>
+        {% endif %}
+
+        <div class="info-grid">
+          {% if scan.symptoms %}
+          <div class="info-block">
+            <h4 class="text-yellow-400">🔍 Symptoms</h4>
+            <ul>{% for s in scan.symptoms %}<li>{{ s }}</li>{% endfor %}</ul>
+          </div>
+          {% endif %}
+
+          {% if scan.causes %}
+          <div class="info-block">
+            <h4 class="text-red-400">⚡ Causes</h4>
+            <ul>{% for c in scan.causes %}<li>{{ c }}</li>{% endfor %}</ul>
+          </div>
+          {% endif %}
+
+          {% if scan.treatment_steps %}
+          <div class="info-block">
+            <h4 class="text-[#10B981]">💊 Treatment</h4>
+            <ul>{% for t in scan.treatment_steps %}<li>{{ t }}</li>{% endfor %}</ul>
+          </div>
+          {% endif %}
+
+          {% if scan.prevention_tips %}
+          <div class="info-block">
+            <h4 class="text-[#818cf8]">🛡️ Prevention</h4>
+            <ul>{% for p in scan.prevention_tips %}<li>{{ p }}</li>{% endfor %}</ul>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Recommended Products -->
+    {% if recommended_products %}
+    <div class="px-6 pb-6 border-t border-white/5 pt-5">
+      <h3 class="text-base font-bold text-white mb-1 flex items-center gap-2">
+        <i data-lucide="shopping-bag" class="w-4 h-4 text-[#10B981]"></i>
+        Recommended Products
+      </h3>
+      <p class="text-xs text-slate-400 mb-3">Products that may help treat or prevent this condition.</p>
+      <div class="prod-grid">
+        {% for p in recommended_products %}
+        <a href="{% url 'marketplace' %}?q={{ p.name|urlencode }}" class="prod-card no-underline">
+          <div class="text-3xl">{{ p.icon }}</div>
+          <div class="text-xs font-semibold text-slate-200 leading-snug">{{ p.name }}</div>
+          <div class="text-xs text-[#10B981] font-bold">৳{{ p.price }} / {{ p.unit }}</div>
+          <div class="text-xs text-yellow-400">★ {{ p.rating }}</div>
+          {% if p.in_stock %}
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#10B981]/15 text-[#10B981] w-fit">In Stock</span>
+          {% else %}
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 w-fit">Out of Stock</span>
+          {% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="flex flex-wrap gap-3 px-6 pb-6">
+      <a href="{% url 'crop_disease:scan_upload' %}"
+         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-semibold text-sm hover:shadow-[0_0_18px_rgba(16,185,129,0.4)] transition-all">
+        <i data-lucide="plus" class="w-4 h-4"></i> New Scan
+      </a>
+      <a href="{% url 'chatbot:chat_home' %}"
+         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 font-semibold text-sm transition-all">
+        <i data-lucide="bot" class="w-4 h-4"></i> Ask AI Assistant
+      </a>
+      <a href="{% url 'crop_disease:scan_history' %}"
+         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 font-semibold text-sm transition-all">
+        <i data-lucide="clock" class="w-4 h-4"></i> History
+      </a>
+    </div>
+
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

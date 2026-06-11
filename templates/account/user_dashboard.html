@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – AgroSense{% endblock %}
+
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-7xl mx-auto">
+
+  <!-- Welcome banner -->
+  <div class="rounded-3xl p-8 mb-8 relative overflow-hidden bg-gradient-to-br from-[#065F46]/50 to-slate-900/80 border border-[#10B981]/20 backdrop-blur-xl animate-fade-in">
+    <div class="absolute -top-16 -right-16 w-48 h-48 bg-[#10B981] rounded-full blur-[70px] opacity-20 pointer-events-none"></div>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30 flex items-center gap-1.5">
+            <i data-lucide="user" class="w-3 h-3"></i> User Account
+          </span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white">Good day, {{ user.first_name|default:user.username }}! 🌱</h1>
+        <p class="text-slate-400 text-sm mt-1">Your farm intelligence is ready. Run a prediction or browse the marketplace.</p>
+      </div>
+      <a href="{% url 'predict' %}"
+         class="flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[0_0_18px_rgba(16,185,129,0.35)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] hover:scale-105 transition-all shrink-0">
+        <i data-lucide="sparkles" class="w-5 h-5"></i> New Prediction
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+    <div class="glass-card rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Predictions</span>
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-[#10B981]/15"><i data-lucide="sprout" class="w-4 h-4 text-[#10B981]"></i></div>
+      </div>
+      <div class="text-2xl font-extrabold text-white">{{ pred_count }}</div>
+      <div class="text-xs text-slate-500 mt-1">Lifetime predictions run</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Model Accuracy</span>
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-[#f59e0b]/15"><i data-lucide="target" class="w-4 h-4 text-[#f59e0b]"></i></div>
+      </div>
+      <div class="text-2xl font-extrabold text-white">98.5%</div>
+      <div class="text-xs text-slate-500 mt-1">Random Forest · 200 estimators</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Account Type</span>
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-[#10B981]/15"><i data-lucide="user-check" class="w-4 h-4 text-[#10B981]"></i></div>
+      </div>
+      <div class="text-2xl font-extrabold text-white">User</div>
+      <div class="text-xs text-slate-500 mt-1">Full AI &amp; marketplace access</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Crops Supported</span>
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-[#38BDF8]/15"><i data-lucide="layers" class="w-4 h-4 text-[#38BDF8]"></i></div>
+      </div>
+      <div class="text-2xl font-extrabold text-white">22</div>
+      <div class="text-xs text-slate-500 mt-1">Crop varieties in model</div>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    <!-- Quick actions -->
+    <div class="lg:col-span-1 space-y-4">
+      <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Quick Actions</h2>
+      <a href="{% url 'predict' %}" class="feature-card block">
+        <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl bg-[#10B981]/15 border border-[#10B981]/20 flex items-center justify-center shrink-0">
+            <i data-lucide="sprout" class="w-5 h-5 text-[#10B981]"></i>
+          </div>
+          <div>
+            <p class="font-bold text-white text-sm">Crop Prediction</p>
+            <p class="text-xs text-slate-500">Enter soil data → get crop</p>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-600 ml-auto"></i>
+        </div>
+      </a>
+      <a href="{% url 'history' %}" class="feature-card block">
+        <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl bg-[#818cf8]/15 border border-[#818cf8]/20 flex items-center justify-center shrink-0">
+            <i data-lucide="clock" class="w-5 h-5 text-[#818cf8]"></i>
+          </div>
+          <div>
+            <p class="font-bold text-white text-sm">Prediction History</p>
+            <p class="text-xs text-slate-500">View past results</p>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-600 ml-auto"></i>
+        </div>
+      </a>
+      <a href="{% url 'marketplace' %}" class="feature-card block">
+        <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl bg-[#f59e0b]/15 border border-[#f59e0b]/20 flex items-center justify-center shrink-0">
+            <i data-lucide="shopping-bag" class="w-5 h-5 text-[#f59e0b]"></i>
+          </div>
+          <div>
+            <p class="font-bold text-white text-sm">Marketplace</p>
+            <p class="text-xs text-slate-500">Browse farm supplies</p>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-600 ml-auto"></i>
+        </div>
+      </a>
+    </div>
+
+    <!-- Recent predictions -->
+    <div class="lg:col-span-2">
+      <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Recent Predictions</h2>
+      {% if predictions %}
+      <div class="space-y-3">
+        {% for p in predictions %}
+        <div class="glass-card rounded-2xl p-4 flex items-center gap-4">
+          <div class="w-10 h-10 rounded-xl bg-[#10B981]/15 flex items-center justify-center text-xl shrink-0">🌱</div>
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-white text-sm">{{ p.predicted_crop|title }}</p>
+            <p class="text-xs text-slate-500 truncate">N:{{ p.Nitrogen }} · P:{{ p.Phosphorus }} · K:{{ p.Potassium }} · pH:{{ p.pH }}</p>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-xs text-slate-500">{{ p.created_at|date:"M d, Y" }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <a href="{% url 'history' %}" class="mt-4 block text-center text-sm text-[#10B981] hover:underline font-medium">View all predictions →</a>
+      {% else %}
+      <div class="glass-card rounded-2xl p-10 text-center">
+        <div class="w-14 h-14 rounded-2xl bg-[#10B981]/10 flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="sprout" class="w-7 h-7 text-[#10B981]"></i>
+        </div>
+        <p class="text-white font-semibold mb-1">No predictions yet</p>
+        <p class="text-slate-500 text-sm mb-4">Run your first AI crop prediction to see results here.</p>
+        <a href="{% url 'predict' %}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#10B981]/15 text-[#10B981] text-sm font-semibold hover:bg-[#10B981]/25 transition-colors">
+          <i data-lucide="sparkles" class="w-4 h-4"></i> Start Predicting
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

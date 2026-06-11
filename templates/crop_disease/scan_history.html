@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}AgroSense — Scan History{% endblock %}
+
+{% block extra_inline_css %}
+.sev-high   { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.sev-medium { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+.sev-low    { background: rgba(234,179,8,0.12);  color: #fbbf24; border: 1px solid rgba(234,179,8,0.3); }
+.sev-none, .sev-healthy {
+  background: rgba(16,185,129,0.15); color: #10B981; border: 1px solid rgba(16,185,129,0.3);
+}
+.scan-card {
+  background: rgba(4,37,20,0.45);
+  border: 1px solid rgba(16,185,129,0.15);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: border-color .2s, transform .2s;
+  text-decoration: none;
+  display: block;
+}
+.scan-card:hover {
+  border-color: rgba(16,185,129,0.38);
+  transform: translateY(-3px);
+}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
+
+  <div class="flex items-center justify-between mb-8">
+    <h3 class="text-2xl font-bold text-white flex items-center gap-2">
+      <i data-lucide="history" class="w-6 h-6 text-[#10B981]"></i>
+      Scan History
+    </h3>
+    <a href="{% url 'crop_disease:scan_upload' %}"
+       class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-semibold text-sm hover:shadow-[0_0_18px_rgba(16,185,129,0.4)] transition-all">
+      <i data-lucide="plus" class="w-4 h-4"></i> New Scan
+    </a>
+  </div>
+
+  {% if page_obj.object_list %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    {% for scan in page_obj %}
+    <a href="{% url 'crop_disease:scan_result' scan.pk %}" class="scan-card">
+      {% if scan.image %}
+      <img src="{{ scan.image.url }}"
+           class="w-full object-cover"
+           style="height:160px;"
+           alt="{{ scan.predicted_class }}" />
+      {% else %}
+      <div class="w-full flex items-center justify-center bg-white/5" style="height:160px;">
+        <i data-lucide="image-off" class="w-8 h-8 text-slate-600"></i>
+      </div>
+      {% endif %}
+      <div class="p-4">
+        <p class="text-white font-semibold text-sm leading-snug mb-2">
+          {{ scan.predicted_class }}
+        </p>
+        <div class="flex items-center justify-between">
+          <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold sev-{{ scan.severity|lower }}">
+            {{ scan.severity }}
+          </span>
+          <span class="text-slate-400 text-xs">{{ scan.confidence_display }}</span>
+        </div>
+        <p class="text-slate-500 text-xs mt-2">{{ scan.uploaded_at|date:"d M Y" }}</p>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if page_obj.has_other_pages %}
+  <nav class="mt-8 flex justify-center">
+    <div class="flex items-center gap-1">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}"
+           class="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </a>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        <a href="?page={{ num }}"
+           class="w-9 h-9 rounded-lg border flex items-center justify-center text-sm font-semibold transition-all
+             {% if num == page_obj.number %}bg-[#10B981] border-[#10B981] text-white{% else %}bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10{% endif %}">
+          {{ num }}
+        </a>
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}"
+           class="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </a>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="text-center py-20">
+    <i data-lucide="folder-open" class="w-16 h-16 text-slate-600 mx-auto mb-4"></i>
+    <h5 class="text-slate-400 font-semibold text-lg mb-1">No scans yet</h5>
+    <p class="text-slate-600 text-sm mb-6">Upload a leaf image to start detecting diseases.</p>
+    <a href="{% url 'crop_disease:scan_upload' %}"
+       class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-semibold text-sm hover:shadow-[0_0_18px_rgba(16,185,129,0.4)] transition-all">
+      <i data-lucide="camera" class="w-4 h-4"></i> Start Diagnosing
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

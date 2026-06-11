@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Product – AgroSense{% endblock %}
+
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-3xl mx-auto">
+
+  <div class="flex items-center gap-3 mb-8">
+    <div class="w-11 h-11 rounded-xl bg-[#818cf8]/15 flex items-center justify-center">
+      <i data-lucide="{% if action == 'Add' %}plus-circle{% else %}pencil{% endif %}" class="w-5 h-5 text-[#818cf8]"></i>
+    </div>
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-extrabold text-white">{{ action }} Product</h1>
+        <span class="badge-merchant">
+          <i data-lucide="store" class="w-2.5 h-2.5"></i> Merchant
+        </span>
+      </div>
+      <p class="text-xs text-slate-500">{% if action == 'Add' %}Add a new product to your shop.{% else %}Update "{{ product.name }}".{% endif %}</p>
+    </div>
+  </div>
+
+  <div class="glass-card rounded-2xl p-8">
+    <!-- enctype required for image/file uploads -->
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <!-- Product name -->
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-slate-300 mb-1.5">Product Name <span class="text-red-400">*</span></label>
+        <input type="text" name="name" value="{{ form.name.value|default:'' }}"
+               class="auth-input" placeholder="Product name" required>
+        {% for e in form.name.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <!-- Category -->
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-slate-300 mb-1.5">Category <span class="text-red-400">*</span></label>
+        <select name="category" class="auth-input" required>
+          <option value="">— Select category —</option>
+          {% for cat in form.fields.category.queryset %}
+          <option value="{{ cat.pk }}" {% if form.category.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
+            {{ cat.icon }} {{ cat.name }}
+          </option>
+          {% endfor %}
+        </select>
+        {% for e in form.category.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <!-- Description -->
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-slate-300 mb-1.5">Description <span class="text-red-400">*</span></label>
+        <textarea name="description" rows="3" class="auth-input" placeholder="Product description…" required>{{ form.description.value|default:'' }}</textarea>
+        {% for e in form.description.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <!-- Price row -->
+      <div class="grid sm:grid-cols-3 gap-4 mb-5">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1.5">Price (৳) <span class="text-red-400">*</span></label>
+          <input type="number" name="price" step="0.01" min="0"
+                 value="{{ form.price.value|default:'' }}"
+                 class="auth-input" placeholder="0.00" required>
+          {% for e in form.price.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1.5">Original Price (৳)</label>
+          <input type="number" name="original_price" step="0.01" min="0"
+                 value="{{ form.original_price.value|default:'' }}"
+                 class="auth-input" placeholder="0.00">
+          {% for e in form.original_price.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1.5">Unit <span class="text-red-400">*</span></label>
+          <input type="text" name="unit" value="{{ form.unit.value|default:'' }}"
+                 class="auth-input" placeholder="per kg" required>
+          {% for e in form.unit.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+        </div>
+      </div>
+
+      <!-- Icon + Stock + Badge row -->
+      <div class="grid sm:grid-cols-3 gap-4 mb-5">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1.5">Icon Emoji</label>
+          <input type="text" name="icon" maxlength="10"
+                 value="{{ form.icon.value|default:'🌱' }}"
+                 class="auth-input" placeholder="🌱">
+          {% for e in form.icon.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1.5">Stock <span class="text-red-400">*</span></label>
+          <input type="number" name="stock" min="0"
+                 value="{{ form.stock.value|default:100 }}"
+                 class="auth-input" placeholder="100" required>
+          {% for e in form.stock.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1.5">Badge</label>
+          <select name="badge" class="auth-input">
+            {% for val, lbl in form.fields.badge.choices %}
+            <option value="{{ val }}" {% if form.badge.value == val %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+          {% for e in form.badge.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+        </div>
+      </div>
+
+      <!-- Product image upload -->
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-slate-300 mb-1.5">Product Image</label>
+        {% if product and product.image %}
+        <div class="mb-2 flex items-center gap-3">
+          <img src="{{ product.image.url }}" alt="Current image"
+               class="w-16 h-16 object-cover rounded-xl border border-white/10">
+          <span class="text-xs text-slate-500">Current image — upload a new one to replace.</span>
+        </div>
+        {% endif %}
+        <input type="file" name="image" accept="image/*"
+               class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#818cf8]/15 file:text-[#818cf8] hover:file:bg-[#818cf8]/25 cursor-pointer">
+        {% for e in form.image.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <!-- Suitable crops -->
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-slate-300 mb-2">Suitable Crops</label>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 rounded-xl bg-white/3 border border-white/8">
+          {% for val, lbl in form.fields.suitable_crops.choices %}
+          <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition-colors">
+            <input type="checkbox" name="suitable_crops" value="{{ val }}"
+                   {% if val in form.suitable_crops.value %}checked{% endif %}
+                   class="w-4 h-4 rounded accent-[#10B981]">
+            {{ lbl }}
+          </label>
+          {% endfor %}
+        </div>
+        {% for e in form.suitable_crops.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <!-- Active toggle -->
+      <div class="mb-6 flex items-center gap-3">
+        <input type="checkbox" name="is_active" id="is_active"
+               {% if form.is_active.value %}checked{% endif %}
+               class="w-4 h-4 rounded accent-[#10B981]">
+        <label for="is_active" class="text-sm text-slate-300 cursor-pointer">
+          List as active (visible to buyers in marketplace)
+        </label>
+      </div>
+
+      <div class="flex gap-3">
+        <button type="submit"
+                class="flex-1 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#818cf8] to-[#6366f1] hover:shadow-[0_0_20px_rgba(129,140,248,0.4)] transition-all">
+          {{ action }} Product
+        </button>
+        <a href="{% url 'accounts:merchant_shop' %}"
+           class="px-6 py-3 rounded-xl font-semibold text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+
+</div>
+</div>
+{% endblock %}

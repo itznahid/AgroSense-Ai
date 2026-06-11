@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Order #{{ order.pk }} – AgroSense{% endblock %}
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-3xl mx-auto">
+
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-[#10B981]/15 flex items-center justify-center">
+        <i data-lucide="receipt" class="w-5 h-5 text-[#10B981]"></i>
+      </div>
+      <div>
+        <h1 class="text-2xl font-extrabold text-white">Order #{{ order.pk }}</h1>
+        <p class="text-xs text-slate-500 mt-0.5">Placed {{ order.created_at|date:"N j, Y · g:i A" }}</p>
+      </div>
+    </div>
+    <a href="{% url 'accounts:user_orders' %}" class="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> All Orders
+    </a>
+  </div>
+
+  <div class="grid sm:grid-cols-2 gap-5 mb-6">
+    <div class="glass-card rounded-2xl p-5">
+      <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Status</p>
+      <span class="px-3 py-1.5 rounded-full text-sm font-bold
+        {% if order.status == 'delivered' %}bg-[#10B981]/20 text-[#10B981]
+        {% elif order.status == 'cancelled' %}bg-red-500/20 text-red-400
+        {% elif order.status == 'shipped' %}bg-blue-500/20 text-blue-400
+        {% else %}bg-[#f59e0b]/20 text-[#f59e0b]{% endif %}">
+        {{ order.get_status_display }}
+      </span>
+    </div>
+    <div class="glass-card rounded-2xl p-5">
+      <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Total</p>
+      <p class="text-2xl font-extrabold text-[#10B981]">৳{{ order.total_amount }}</p>
+    </div>
+  </div>
+
+  <div class="auth-card rounded-2xl p-6 mb-5">
+    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+      <i data-lucide="package" class="w-4 h-4"></i> Items
+    </h2>
+    <div class="space-y-3">
+      {% for item in order.items.all %}
+      <div class="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+        <div>
+          <p class="text-sm font-semibold text-white">{{ item.product_name }}</p>
+          <p class="text-xs text-slate-500">৳{{ item.product_price }} × {{ item.quantity }}</p>
+        </div>
+        <span class="font-bold text-sm text-[#10B981]">৳{{ item.subtotal }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="glass-card rounded-2xl p-5">
+    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <i data-lucide="map-pin" class="w-4 h-4"></i> Delivery Info
+    </h2>
+    <p class="text-sm text-slate-300 mb-2">{{ order.delivery_address }}</p>
+    <p class="text-sm text-slate-300">📞 {{ order.phone }}</p>
+    {% if order.notes %}<p class="text-sm text-slate-500 mt-2">Note: {{ order.notes }}</p>{% endif %}
+  </div>
+
+</div>
+</div>
+{% endblock %}

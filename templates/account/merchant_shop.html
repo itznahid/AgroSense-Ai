@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}My Products – AgroSense{% endblock %}
+
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-6xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-[#818cf8]/15 flex items-center justify-center">
+        <i data-lucide="package" class="w-5 h-5 text-[#818cf8]"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-extrabold text-white">My Products</h1>
+          <span class="badge-merchant"><i data-lucide="store" class="w-2.5 h-2.5"></i> Merchant</span>
+        </div>
+        <p class="text-xs text-slate-500">{{ merchant_profile.shop_icon }} {{ merchant_profile.shop_name }}</p>
+      </div>
+    </div>
+    <a href="{% url 'accounts:add_product' %}"
+       class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white
+              bg-gradient-to-r from-[#818cf8] to-[#6366f1]
+              hover:shadow-[0_0_20px_rgba(129,140,248,0.4)] hover:scale-105 transition-all">
+      <i data-lucide="plus" class="w-4 h-4"></i> Add Product
+    </a>
+  </div>
+
+  <!-- Category filter -->
+  <div class="flex gap-2 flex-wrap mb-6">
+    <a href="{% url 'accounts:merchant_shop' %}"
+       class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all
+              {% if not cat_filter %}bg-[#818cf8] text-white{% else %}bg-white/5 text-slate-400 hover:bg-white/10{% endif %}">
+      All
+    </a>
+    {% for cat in categories %}
+    <a href="?cat={{ cat.slug }}"
+       class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all
+              {% if cat_filter == cat.slug %}bg-[#818cf8] text-white{% else %}bg-white/5 text-slate-400 hover:bg-white/10{% endif %}">
+      {{ cat.icon }} {{ cat.name }}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if products %}
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for p in products %}
+    <div class="glass-card rounded-2xl overflow-hidden flex flex-col">
+
+      <!-- Product image or icon banner -->
+      <div class="h-36 flex items-center justify-center relative
+                  {% if p.is_active %}bg-[#818cf8]/8{% else %}bg-white/3{% endif %}">
+        {% if p.image %}
+        <img src="{{ p.image.url }}" alt="{{ p.name }}"
+             class="w-full h-full object-cover {% if not p.is_active %}opacity-50 grayscale{% endif %}">
+        {% else %}
+        <span class="text-5xl {% if not p.is_active %}opacity-30{% endif %}">{{ p.icon }}</span>
+        {% endif %}
+        <!-- Badges -->
+        <div class="absolute top-3 left-3 flex gap-1.5">
+          {% if p.badge %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30">{{ p.badge }}</span>
+          {% endif %}
+          {% if not p.is_active %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-700/70 text-slate-400">Inactive</span>
+          {% endif %}
+        </div>
+        {% if p.stock == 0 %}
+        <span class="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400">Out of Stock</span>
+        {% elif p.stock < 10 %}
+        <span class="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-xs font-bold bg-[#f59e0b]/20 text-[#f59e0b]">Low Stock</span>
+        {% endif %}
+      </div>
+
+      <!-- Info -->
+      <div class="p-4 flex-1 flex flex-col">
+        <p class="font-bold text-white text-sm mb-0.5 truncate">{{ p.name }}</p>
+        <p class="text-xs text-slate-500 mb-3">{{ p.category.name }} · {{ p.unit }}</p>
+
+        <div class="flex items-center justify-between mt-auto">
+          <div>
+            <p class="font-extrabold text-[#10B981]">৳{{ p.price }}</p>
+            {% if p.original_price %}<p class="text-xs text-slate-600 line-through">৳{{ p.original_price }}</p>{% endif %}
+          </div>
+          <p class="text-xs text-slate-400">Stock: <span class="font-bold {% if p.stock == 0 %}text-red-400{% elif p.stock < 10 %}text-[#f59e0b]{% else %}text-slate-200{% endif %}">{{ p.stock }}</span></p>
+        </div>
+
+        <!-- Actions — ownership enforced at view level -->
+        <div class="flex gap-2 mt-4">
+          <a href="{% url 'accounts:edit_product' p.pk %}"
+             class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold
+                    bg-[#818cf8]/15 text-[#818cf8] hover:bg-[#818cf8]/25 transition-colors">
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Edit
+          </a>
+          <a href="{% url 'accounts:delete_product' p.pk %}"
+             class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold
+                    bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="glass-card rounded-3xl p-14 text-center">
+    <div class="w-16 h-16 rounded-2xl bg-[#818cf8]/10 flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="package-plus" class="w-8 h-8 text-[#818cf8]"></i>
+    </div>
+    <h2 class="text-lg font-bold text-white mb-2">No products yet</h2>
+    <p class="text-slate-500 text-sm mb-5">Start adding products to make them available in the marketplace.</p>
+    <a href="{% url 'accounts:add_product' %}"
+       class="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white
+              bg-gradient-to-r from-[#818cf8] to-[#6366f1]
+              hover:shadow-[0_0_20px_rgba(129,140,248,0.4)] transition-all">
+      <i data-lucide="plus" class="w-4 h-4"></i> Add First Product
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+</div>
+{% endblock %}

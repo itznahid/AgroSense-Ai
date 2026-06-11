@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+{% block title %}Crop Prediction – AgroSense{% endblock %}
+
+{% block extra_inline_css %}
+.input-group { margin-bottom: 1.25rem; }
+.pred-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9;
+  border-radius: 0.75rem;
+  padding: 0.7rem 1rem 0.7rem 2.75rem;
+  width: 100%;
+  font-size: 0.875rem;
+  transition: border-color .2s, box-shadow .2s;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.pred-input::-webkit-outer-spin-button,
+.pred-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pred-input:focus { border-color: rgba(16,185,129,.6); box-shadow: 0 0 0 3px rgba(16,185,129,.12); }
+.pred-input::placeholder { color: #475569; }
+.pred-input.err { border-color: rgba(239,68,68,.6); }
+
+.field-error { color: #f87171; font-size: 0.72rem; margin-top: 0.2rem; display: block; }
+.unit-badge {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  font-size: 0.65rem; font-weight: 700; color: #475569;
+  text-transform: uppercase; letter-spacing: 0.05em; pointer-events: none;
+}
+
+.weather-card { display: none; }
+.weather-card.show { display: block; animation: fadeUp .35s ease both; }
+
+.city-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9; border-radius: 0.75rem; outline: none;
+  font-size: 0.875rem; transition: border-color .2s, box-shadow .2s;
+}
+.city-input:focus { border-color: rgba(56,189,248,0.55); box-shadow: 0 0 0 3px rgba(56,189,248,0.10); }
+.city-input::placeholder { color: #475569; }
+
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes spin   { to   { transform: rotate(360deg); } }
+.spin-anim { animation: spin 1s linear infinite; display:inline-block; }
+{% endblock %}
+
+{% block content %}
+<div class="fixed top-20 left-0 w-72 h-72 rounded-full blur-[90px] opacity-20 pointer-events-none" style="background:#10B981;z-index:1"></div>
+<div class="fixed bottom-0 right-0 w-96 h-96 rounded-full blur-[110px] opacity-10 pointer-events-none" style="background:#818cf8;z-index:1"></div>
+
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-3xl mx-auto animate-fade-in">
+
+  <!-- Page header -->
+  <div class="mb-10 text-center">
+    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-5 bg-[#10B981]/10 border border-[#10B981]/30">
+      <i data-lucide="sprout" class="w-4 h-4 text-[#10B981]"></i>
+      <span class="text-sm font-semibold text-[#10B981]">AI Crop Intelligence</span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-3">
+      What Should You <span class="text-gradient">Grow Next?</span>
+    </h1>
+    <p class="text-slate-400 text-sm max-w-lg mx-auto leading-relaxed">
+      Check your local weather below, then fill in the soil and climate values manually.
+    </p>
+  </div>
+
+  <!-- Badges -->
+  <div class="flex flex-wrap justify-center gap-4 mb-10">
+    <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-slate-400 font-medium">
+      <i data-lucide="cpu" class="w-3.5 h-3.5 text-[#10B981]"></i> Random Forest · 200 Trees
+    </div>
+    <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-slate-400 font-medium">
+      <i data-lucide="target" class="w-3.5 h-3.5 text-[#f59e0b]"></i> 98.5% Accuracy
+    </div>
+    <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-slate-400 font-medium">
+      <i data-lucide="cloud" class="w-3.5 h-3.5 text-[#38BDF8]"></i> Live Weather Reference
+    </div>
+  </div>
+
+  <!-- ── WEATHER REFERENCE CARD ─────────────────────────────────────────────── -->
+  <div class="mb-6 rounded-2xl border border-[#38BDF8]/25 bg-[#38BDF8]/05 overflow-hidden">
+
+    <!-- City search bar -->
+    <div class="flex gap-2 p-4">
+      <div class="relative flex-1">
+        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none"></i>
+        <input type="text" id="city-input" placeholder="Type your city  e.g. Dhaka, Ashulia, Sylhet…"
+               class="city-input w-full pl-9 pr-3 py-2.5">
+      </div>
+      <button type="button" id="weather-btn" onclick="checkWeather()"
+              class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white
+                     bg-[#38BDF8]/20 border border-[#38BDF8]/40
+                     hover:bg-[#38BDF8]/30 hover:shadow-[0_0_14px_rgba(56,189,248,0.25)]
+                     transition-all whitespace-nowrap">
+        <i data-lucide="cloud-sun" class="w-4 h-4" id="weather-btn-icon"></i>
+        <span id="weather-btn-text">Check Weather</span>
+      </button>
+    </div>
+
+    <!-- Error -->
+    <div id="weather-error" class="hidden mx-4 mb-3 px-4 py-2.5 rounded-xl border border-red-500/30 bg-red-500/08 flex items-center gap-2">
+      <i data-lucide="alert-circle" class="w-4 h-4 text-red-400 shrink-0"></i>
+      <p class="text-sm text-red-300" id="weather-error-msg"></p>
+    </div>
+
+    <!-- Result card -->
+    <div id="weather-card" class="weather-card px-4 pb-4">
+      <div class="rounded-xl border border-white/08 bg-white/[0.03] p-4">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-base font-bold text-white" id="w-city">—</p>
+            <p class="text-xs text-slate-400" id="w-condition">—</p>
+          </div>
+          <img id="w-icon" src="" alt="" class="w-12 h-12 rounded-lg bg-white/5">
+        </div>
+
+        <!-- 3 key values the user needs -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="rounded-xl bg-[#f59e0b]/08 border border-[#f59e0b]/20 p-3 text-center">
+            <i data-lucide="thermometer" class="w-4 h-4 text-[#f59e0b] mx-auto mb-1"></i>
+            <p class="text-lg font-extrabold text-white" id="w-temp">—</p>
+            <p class="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Temp °C</p>
+          </div>
+          <div class="rounded-xl bg-[#38BDF8]/08 border border-[#38BDF8]/20 p-3 text-center">
+            <i data-lucide="droplets" class="w-4 h-4 text-[#38BDF8] mx-auto mb-1"></i>
+            <p class="text-lg font-extrabold text-white" id="w-hum">—</p>
+            <p class="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Humidity %</p>
+          </div>
+          <div class="rounded-xl bg-[#818cf8]/08 border border-[#818cf8]/20 p-3 text-center">
+            <i data-lucide="cloud-rain" class="w-4 h-4 text-[#818cf8] mx-auto mb-1"></i>
+            <p class="text-lg font-extrabold text-white" id="w-rain">—</p>
+            <p class="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Rainfall mm</p>
+          </div>
+        </div>
+
+        <p class="text-[10px] text-slate-600 mt-3 text-center">
+          ↑ Use these values in the form below. Rainfall = 7-day forecast scaled to monthly.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PREDICTION FORM ────────────────────────────────────────────────────── -->
+  <div class="auth-card rounded-3xl p-8 sm:p-10">
+    <form method="post" novalidate id="pred-form">
+      {% csrf_token %}
+
+      <!-- Soil Nutrients -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-5">
+          <div class="w-8 h-8 rounded-lg bg-[#10B981]/15 flex items-center justify-center">
+            <i data-lucide="flask-conical" class="w-4 h-4 text-[#10B981]"></i>
+          </div>
+          <h2 class="text-base font-bold text-white">Soil Macronutrients</h2>
+          <span class="text-xs text-slate-500 ml-1">(kg/ha)</span>
+        </div>
+        <div class="grid sm:grid-cols-3 gap-5">
+
+          <div class="input-group">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nitrogen (N)</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <span class="text-[#10B981] font-bold text-sm">N</span>
+              </span>
+              <input type="number" name="nitrogen" id="id_nitrogen" step="0.1" min="0" max="140"
+                     value="{{ form.nitrogen.value|default:'' }}" placeholder="0 – 140"
+                     class="pred-input {% if form.nitrogen.errors %}err{% endif %}">
+              <span class="unit-badge">kg/ha</span>
+            </div>
+            {% for e in form.nitrogen.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+          </div>
+
+          <div class="input-group">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Phosphorus (P)</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <span class="text-[#38BDF8] font-bold text-sm">P</span>
+              </span>
+              <input type="number" name="phosphorus" id="id_phosphorus" step="0.1" min="0" max="145"
+                     value="{{ form.phosphorus.value|default:'' }}" placeholder="0 – 145"
+                     class="pred-input {% if form.phosphorus.errors %}err{% endif %}">
+              <span class="unit-badge">kg/ha</span>
+            </div>
+            {% for e in form.phosphorus.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+          </div>
+
+          <div class="input-group">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Potassium (K)</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <span class="text-[#818cf8] font-bold text-sm">K</span>
+              </span>
+              <input type="number" name="potassium" id="id_potassium" step="0.1" min="0" max="205"
+                     value="{{ form.potassium.value|default:'' }}" placeholder="0 – 205"
+                     class="pred-input {% if form.potassium.errors %}err{% endif %}">
+              <span class="unit-badge">kg/ha</span>
+            </div>
+            {% for e in form.potassium.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Climate -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-5">
+          <div class="w-8 h-8 rounded-lg bg-[#38BDF8]/15 flex items-center justify-center">
+            <i data-lucide="cloud-sun" class="w-4 h-4 text-[#38BDF8]"></i>
+          </div>
+          <h2 class="text-base font-bold text-white">Climate Conditions</h2>
+          <span class="text-xs text-slate-500 ml-1">— enter from weather card above</span>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-5">
+
+          <div class="input-group">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Temperature</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <i data-lucide="thermometer" class="w-4 h-4 text-[#f59e0b]"></i>
+              </span>
+              <input type="number" name="temperature" id="id_temperature" step="0.01" min="0" max="51"
+                     value="{{ form.temperature.value|default:'' }}" placeholder="e.g. 28.5"
+                     class="pred-input {% if form.temperature.errors %}err{% endif %}">
+              <span class="unit-badge">°C</span>
+            </div>
+            {% for e in form.temperature.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+          </div>
+
+          <div class="input-group">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Humidity</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <i data-lucide="droplets" class="w-4 h-4 text-[#38BDF8]"></i>
+              </span>
+              <input type="number" name="humidity" id="id_humidity" step="0.01" min="0" max="100"
+                     value="{{ form.humidity.value|default:'' }}" placeholder="e.g. 65.0"
+                     class="pred-input {% if form.humidity.errors %}err{% endif %}">
+              <span class="unit-badge">%</span>
+            </div>
+            {% for e in form.humidity.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Soil Chemistry + Rainfall -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-5">
+          <div class="w-8 h-8 rounded-lg bg-[#818cf8]/15 flex items-center justify-center">
+            <i data-lucide="test-tube" class="w-4 h-4 text-[#818cf8]"></i>
+          </div>
+          <h2 class="text-base font-bold text-white">Soil Chemistry &amp; Rainfall</h2>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-5">
+
+          <div class="input-group">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Soil pH</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <i data-lucide="activity" class="w-4 h-4 text-[#818cf8]"></i>
+              </span>
+              <input type="number" name="ph" id="id_ph" step="0.01" min="0" max="14"
+                     value="{{ form.ph.value|default:'' }}" placeholder="e.g. 6.5"
+                     class="pred-input {% if form.ph.errors %}err{% endif %}">
+              <span class="unit-badge">0–14</span>
+            </div>
+            <p class="text-[10px] text-slate-600 mt-1">0 = acidic · 7 = neutral · 14 = alkaline</p>
+            {% for e in form.ph.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+          </div>
+
+          <div class="input-group">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Rainfall</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <i data-lucide="cloud-rain" class="w-4 h-4 text-[#38BDF8]"></i>
+              </span>
+              <input type="number" name="rainfall" id="id_rainfall" step="0.1" min="0" max="300"
+                     value="{{ form.rainfall.value|default:'' }}" placeholder="e.g. 120.5"
+                     class="pred-input {% if form.rainfall.errors %}err{% endif %}">
+              <span class="unit-badge">mm</span>
+            </div>
+            {% for e in form.rainfall.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+          </div>
+
+        </div>
+      </div>
+
+      {% if form.non_field_errors %}
+      <div class="mb-5 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2">
+        <i data-lucide="alert-circle" class="w-4 h-4 text-red-400 shrink-0 mt-0.5"></i>
+        <div>{% for e in form.non_field_errors %}<p class="text-red-400 text-sm">{{ e }}</p>{% endfor %}</div>
+      </div>
+      {% endif %}
+
+      <button type="submit" id="submit-btn"
+              class="w-full py-4 rounded-xl font-bold text-white text-base
+                     bg-gradient-to-r from-[#10B981] to-[#059669]
+                     shadow-[0_0_20px_rgba(16,185,129,0.3)]
+                     hover:shadow-[0_0_35px_rgba(16,185,129,0.55)]
+                     hover:scale-[1.02] active:scale-[0.99] transition-all
+                     flex items-center justify-center gap-3">
+        <i data-lucide="sparkles" class="w-5 h-5" id="btn-icon"></i>
+        <span id="btn-text">Predict Best Crop</span>
+      </button>
+    </form>
+  </div>
+
+  <p class="text-center mt-6">
+    <a href="{% url 'dashboard' %}" class="text-slate-400 hover:text-[#10B981] transition-colors flex items-center justify-center gap-1.5 text-sm">
+      <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Dashboard
+    </a>
+  </p>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const WEATHER_URL = "{% url 'weather_api' %}";
+const CSRF_TOKEN  = "{{ csrf_token }}";
+
+function fetchWithTimeout(url, ms) {
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, {
+    signal: ctrl.signal,
+    headers: { 'X-CSRFToken': CSRF_TOKEN }
+  }).finally(() => clearTimeout(timer));
+}
+
+async function checkWeather() {
+  const raw = (document.getElementById('city-input').value || '').trim();
+  if (!raw) { document.getElementById('city-input').focus(); return; }
+
+  // Sanitize
+  const city = raw.replace(/[.;]+/g, '').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+
+  const btn     = document.getElementById('weather-btn');
+  const btnIcon = document.getElementById('weather-btn-icon');
+  const btnText = document.getElementById('weather-btn-text');
+  const errBox  = document.getElementById('weather-error');
+  const card    = document.getElementById('weather-card');
+
+  // Loading state
+  btn.disabled      = true;
+  btnIcon.className = 'w-4 h-4 spin-anim';
+  btnIcon.setAttribute('data-lucide', 'loader');
+  btnText.textContent = 'Fetching…';
+  errBox.classList.add('hidden');
+  errBox.classList.remove('flex');
+  lucide.createIcons();
+
+  try {
+    const resp = await fetchWithTimeout(
+      WEATHER_URL + '?city=' + encodeURIComponent(city), 15000
+    );
+    const data = await resp.json();
+
+    if (!data.ok) {
+      document.getElementById('weather-error-msg').textContent =
+        data.error || 'City not found. Try a simpler name like "Dhaka" or "Ashulia".';
+      errBox.classList.remove('hidden');
+      errBox.classList.add('flex');
+      card.classList.remove('show');
+    } else {
+      // Show weather card — display only, NO form fill
+      document.getElementById('w-city').textContent     = data.location || city;
+      document.getElementById('w-condition').textContent = data.condition || '—';
+      document.getElementById('w-temp').textContent     = data.temperature + ' °C';
+      document.getElementById('w-hum').textContent      = data.humidity + ' %';
+      document.getElementById('w-rain').textContent     = data.rainfall + ' mm';
+
+      const iconEl = document.getElementById('w-icon');
+      if (data.icon) {
+        iconEl.src = data.icon.startsWith('//') ? 'https:' + data.icon : data.icon;
+        iconEl.style.display = 'block';
+      } else {
+        iconEl.style.display = 'none';
+      }
+
+      card.classList.add('show');
+      lucide.createIcons();
+    }
+  } catch (e) {
+    document.getElementById('weather-error-msg').textContent =
+      'Network error. Check your connection and try again.';
+    errBox.classList.remove('hidden');
+    errBox.classList.add('flex');
+  } finally {
+    btn.disabled      = false;
+    btnIcon.className = 'w-4 h-4';
+    btnIcon.setAttribute('data-lucide', 'cloud-sun');
+    btnText.textContent = 'Check Weather';
+    lucide.createIcons();
+  }
+}
+
+// Enter key on city input
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('city-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); checkWeather(); }
+  });
+});
+
+// Submit spinner
+document.getElementById('pred-form').addEventListener('submit', function () {
+  const btn  = document.getElementById('submit-btn');
+  const text = document.getElementById('btn-text');
+  const icon = document.getElementById('btn-icon');
+  btn.disabled = true;
+  btn.classList.add('opacity-80');
+  text.textContent = 'Analyzing…';
+  icon.setAttribute('data-lucide', 'loader');
+  icon.style.animation = 'spin 1s linear infinite';
+  lucide.createIcons();
+});
+</script>
+{% endblock %}

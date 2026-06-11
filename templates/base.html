@@ -1,0 +1,835 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}AgroSense - AI Smart Agriculture{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}Empower your farm with AI-powered crop predictions, disease detection, and smart marketplace solutions.{% endblock %}">
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  {% block extra_css %}{% endblock %}
+
+  <style>
+    /* ── Tokens ──────────────────────────────────────────────────────────── */
+    :root {
+      --green:        #10B981;
+      --green-dark:   #065F46;
+      --green-glow:   rgba(16,185,129,0.35);
+      --indigo:       #818cf8;
+      --sky:          #38BDF8;
+      --bg:           #020617;
+      --surface:      rgba(4,37,20,0.42);
+      --border:       rgba(16,185,129,0.15);
+      --text:         #f1f5f9;
+      --muted:        #64748b;
+      --nav-h:        80px;
+    }
+
+    /* ── Reset / Base ────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      /* page-load fade-in */
+      animation: pageEntry .45s ease both;
+    }
+
+    @keyframes pageEntry {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Scroll progress bar ─────────────────────────────────────────────── */
+    #scroll-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 2px;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green), var(--sky), var(--indigo));
+      z-index: 9999;
+      transition: width .08s linear;
+      pointer-events: none;
+    }
+    #scroll-bar::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 50%;
+      transform: translateY(-50%);
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--sky);
+      box-shadow: 0 0 8px var(--sky);
+    }
+
+    /* ── Grain / noise overlay ───────────────────────────────────────────── */
+    #grain {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 1;
+      opacity: .028;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px;
+    }
+
+    /* ── Cursor glow (desktop pointer only) ──────────────────────────────── */
+    #cursor-glow {
+      position: fixed;
+      width: 360px; height: 360px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16,185,129,.07) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      transform: translate(-50%, -50%);
+      transition: opacity .4s;
+      opacity: 0;
+    }
+
+    /* ── Navbar ──────────────────────────────────────────────────────────── */
+    .glass-nav {
+      background: rgba(2, 6, 23, 0.65);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      transition: background .35s ease, box-shadow .35s ease;
+    }
+    .glass-nav.scrolled {
+      background: rgba(2, 6, 23, 0.92);
+      box-shadow: 0 4px 32px rgba(0,0,0,.4);
+    }
+
+    /* nav link active indicator */
+    .nav-link-active {
+      color: var(--green);
+      position: relative;
+    }
+    .nav-link-active::after {
+      content: '';
+      position: absolute;
+      bottom: -4px; left: 0; right: 0;
+      height: 1.5px;
+      border-radius: 1px;
+      background: var(--green);
+      animation: slideIn .25s ease;
+    }
+    @keyframes slideIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+    /* ── Glass cards ─────────────────────────────────────────────────────── */
+    .glass-card {
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 30px rgba(0,0,0,0.12);
+      transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+    }
+    .feature-card:hover .glass-card {
+      transform: translateY(-6px);
+      border-color: rgba(16,185,129,0.45);
+      box-shadow: 0 12px 48px rgba(16,185,129,.14);
+    }
+    .auth-card {
+      background: rgba(4,20,14,0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(16,185,129,0.18);
+      box-shadow: 0 8px 48px rgba(0,0,0,0.35);
+    }
+
+    /* ── Form inputs ─────────────────────────────────────────────────────── */
+    .auth-input {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      border-radius: .75rem;
+      padding: .75rem 1rem;
+      width: 100%;
+      font-size: .875rem;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+    .auth-input:focus {
+      border-color: rgba(16,185,129,.6);
+      box-shadow: 0 0 0 3px rgba(16,185,129,.12);
+    }
+    .auth-input::placeholder { color: var(--muted); }
+    .auth-input option       { background: #0f2318; color: var(--text); }
+    .field-error             { color: #f87171; font-size: .75rem; margin-top: .25rem; display: block; }
+
+    /* ── Role badges ─────────────────────────────────────────────────────── */
+    .badge-customer {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 9999px;
+      font-size: .65rem; font-weight: 700; letter-spacing: .05em;
+      background: rgba(16,185,129,.15); color: var(--green);
+      border: 1px solid rgba(16,185,129,.3);
+    }
+    .badge-merchant {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 9999px;
+      font-size: .65rem; font-weight: 700; letter-spacing: .05em;
+      background: rgba(129,140,248,.15); color: var(--indigo);
+      border: 1px solid rgba(129,140,248,.3);
+    }
+
+    /* ── Mobile menu ─────────────────────────────────────────────────────── */
+    #mob-menu {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height .38s cubic-bezier(.4,0,.2,1),
+                  opacity    .28s ease;
+      border-top: 1px solid transparent;
+    }
+    #mob-menu.open {
+      max-height: 600px;
+      opacity: 1;
+      border-top-color: rgba(255,255,255,.06);
+    }
+
+    /* ── Particles ───────────────────────────────────────────────────────── */
+    #particle-container {
+      position: fixed; inset: 0;
+      overflow: hidden; pointer-events: none; z-index: 0;
+    }
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      animation: floatUp var(--dur) ease-in-out infinite var(--delay);
+      filter: blur(.8px);
+      will-change: transform;
+    }
+    /* leaf-shaped particles */
+    .particle.leaf {
+      border-radius: 0 50% 0 50%;
+      transform-origin: center;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(0)    rotate(var(--rot, 0deg)) scale(1); }
+      50%  { transform: translateY(-32px) rotate(calc(var(--rot, 0deg) + 10deg)) scale(1.06); }
+      100% { transform: translateY(0)    rotate(var(--rot, 0deg)) scale(1); }
+    }
+
+    /* ── Text gradient ───────────────────────────────────────────────────── */
+    .text-gradient {
+      background: linear-gradient(135deg, var(--green), var(--sky), var(--indigo));
+      background-size: 200% 200%;
+      animation: gradientShift 6s ease infinite;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* ── Glow animations ─────────────────────────────────────────────────── */
+    .animate-glow-border {
+      animation: glowPulse 2.5s infinite;
+    }
+    @keyframes glowPulse {
+      0%,100% { box-shadow: 0 0 15px rgba(16,185,129,.2); }
+      50%      { box-shadow: 0 0 30px rgba(16,185,129,.55); }
+    }
+
+    @keyframes gradientShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* ── Scroll reveal ───────────────────────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    /* stagger children */
+    .reveal-stagger > * {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .reveal-stagger.visible > *:nth-child(1) { opacity:1; transform:none; transition-delay: .05s; }
+    .reveal-stagger.visible > *:nth-child(2) { opacity:1; transform:none; transition-delay: .15s; }
+    .reveal-stagger.visible > *:nth-child(3) { opacity:1; transform:none; transition-delay: .25s; }
+    .reveal-stagger.visible > *:nth-child(4) { opacity:1; transform:none; transition-delay: .35s; }
+    .reveal-stagger.visible > *:nth-child(5) { opacity:1; transform:none; transition-delay: .45s; }
+    .reveal-stagger.visible > *:nth-child(n+6) { opacity:1; transform:none; transition-delay: .55s; }
+
+    /* ── Flash messages ──────────────────────────────────────────────────── */
+    .toast {
+      animation: toastIn .38s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(24px) scale(.96); }
+      to   { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    .toast.dismissing {
+      animation: toastOut .32s ease forwards;
+    }
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateX(20px); max-height: 0; padding: 0; margin: 0; border: none; }
+    }
+
+    /* ── Button ripple ───────────────────────────────────────────────────── */
+    .btn-ripple {
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-ripple::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 70%);
+      opacity: 0;
+      transform: scale(0);
+      transition: transform .45s ease, opacity .45s ease;
+    }
+    .btn-ripple:active::after {
+      transform: scale(2.5);
+      opacity: 1;
+      transition: 0s;
+    }
+
+    /* ── Progress bar fill (charts) ──────────────────────────────────────── */
+    .progress-bar-fill { animation: fillProgress 1.5s cubic-bezier(.4,0,.2,1) forwards; }
+    @keyframes fillProgress { from { width: 0; } }
+
+    /* ── Reduced motion ──────────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    /* ── Responsive helpers ──────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      :root { --nav-h: 68px; }
+      .text-gradient { background-size: 100% 100%; }
+    }
+
+    {% block extra_inline_css %}{% endblock %}
+  </style>
+</head>
+
+<body class="antialiased selection:bg-[#10B981] selection:text-white relative">
+
+  <!-- Scroll progress indicator -->
+  <div id="scroll-bar" role="progressbar" aria-hidden="true"></div>
+
+  <!-- Grain texture -->
+  <div id="grain" aria-hidden="true"></div>
+
+  <!-- Cursor glow (shown only on pointer:fine devices via JS) -->
+  <div id="cursor-glow" aria-hidden="true"></div>
+
+  <!-- Ambient particles -->
+  <div id="particle-container" aria-hidden="true"></div>
+
+
+  <!-- ══ NAVBAR ════════════════════════════════════════════════════════════ -->
+  <nav class="fixed w-full z-50 glass-nav" id="main-nav" aria-label="Main navigation">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-20 sm:h-20">
+
+        <!-- Brand -->
+        <a href="{% url 'home' %}" class="flex items-center gap-2.5 group flex-shrink-0" aria-label="AgroSense home">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#10B981] to-[#065F46] flex items-center justify-center shadow-[0_0_0_0_rgba(16,185,129,0)] group-hover:shadow-[0_0_20px_rgba(16,185,129,0.55)] transition-all duration-300">
+            <i data-lucide="leaf" class="w-5 h-5 text-white"></i>
+          </div>
+          <span class="text-xl font-bold tracking-tight text-white">Agro<span class="text-[#10B981]">Sense</span></span>
+        </a>
+
+        <!-- Desktop nav links -->
+        <div class="hidden md:flex items-center gap-5 lg:gap-6">
+
+          {% if user.is_authenticated %}
+
+            {% if user.account.is_merchant %}
+            <!-- ── Merchant ─────────────────────────────────────────────── -->
+              <a href="{% url 'marketplace' %}"
+                 class="text-sm font-medium transition-colors duration-200 {% if request.resolver_match.url_name == 'marketplace' %}nav-link-active{% else %}text-slate-300 hover:text-[#10B981]{% endif %}">
+                Marketplace
+              </a>
+              <a href="{% url 'accounts:merchant_dashboard' %}"
+                 class="text-sm font-medium transition-colors duration-200 {% if request.resolver_match.url_name == 'merchant_dashboard' %}text-[#818cf8] nav-link-active{% else %}text-slate-300 hover:text-[#818cf8]{% endif %}">
+                Dashboard
+              </a>
+              <a href="{% url 'accounts:merchant_shop' %}"
+                 class="text-sm font-medium transition-colors duration-200 {% if request.resolver_match.url_name == 'merchant_shop' %}text-[#818cf8] nav-link-active{% else %}text-slate-300 hover:text-[#818cf8]{% endif %}">
+                Products
+              </a>
+              <a href="{% url 'accounts:merchant_orders' %}"
+                 class="text-sm font-medium transition-colors duration-200 {% if request.resolver_match.url_name == 'merchant_orders' %}text-[#818cf8] nav-link-active{% else %}text-slate-300 hover:text-[#818cf8]{% endif %}">
+                Orders
+              </a>
+              <a href="{% url 'accounts:merchant_shop_edit' %}"
+                 class="text-sm font-medium transition-colors duration-200 {% if request.resolver_match.url_name == 'merchant_shop_edit' %}text-[#818cf8] nav-link-active{% else %}text-slate-300 hover:text-[#818cf8]{% endif %}">
+                Shop Settings
+              </a>
+
+              <!-- Merchant identity -->
+              <div class="flex items-center gap-2 pl-2 border-l border-white/10">
+                <div class="w-8 h-8 rounded-full bg-[#818cf8]/20 border border-[#818cf8]/40 flex items-center justify-center">
+                  <i data-lucide="store" class="w-4 h-4 text-[#818cf8]"></i>
+                </div>
+                <div class="flex flex-col leading-none gap-0.5">
+                  <span class="text-xs font-semibold text-white">{{ user.first_name|default:user.username }}</span>
+                  <span class="badge-merchant"><i data-lucide="shield" class="w-2.5 h-2.5"></i> Merchant</span>
+                </div>
+              </div>
+
+            {% else %}
+            <!-- ── Customer ─────────────────────────────────────────────── -->
+              <a href="{% url 'home' %}"
+                 class="text-sm font-medium transition-colors duration-200 {% if request.resolver_match.url_name == 'home' %}nav-link-active{% else %}text-slate-300 hover:text-[#10B981]{% endif %}">
+                Home
+              </a>
+              <a href="{% url 'chatbot:chat' %}"
+                 class="text-sm font-medium transition-colors duration-200 flex items-center gap-1.5 {% if request.resolver_match.app_name == 'chatbot' %}nav-link-active{% else %}text-slate-300 hover:text-[#10B981]{% endif %}">
+                <i data-lucide="bot" class="w-3.5 h-3.5"></i> AI Assistant
+              </a>
+              <a href="{% url 'crop_disease:scan_upload' %}"
+                 class="text-sm font-medium transition-colors duration-200 text-slate-300 hover:text-[#10B981]">
+                Disease Scanner
+              </a>
+              <a href="{% url 'marketplace' %}"
+                 class="text-sm font-medium transition-colors duration-200 {% if request.resolver_match.url_name == 'marketplace' %}nav-link-active{% else %}text-slate-300 hover:text-[#10B981]{% endif %}">
+                Marketplace
+              </a>
+              <a href="{% url 'accounts:user_orders' %}"
+                 class="text-sm font-medium transition-colors duration-200 {% if request.resolver_match.url_name == 'user_orders' %}nav-link-active{% else %}text-slate-300 hover:text-[#10B981]{% endif %}">
+                My Orders
+              </a>
+
+              <!-- Customer identity -->
+              <a href="{% url 'accounts:user_profile' %}" class="flex items-center gap-2 pl-2 border-l border-white/10 hover:opacity-80 transition-opacity">
+                <div class="w-8 h-8 rounded-full bg-[#10B981]/20 border border-[#10B981]/40 flex items-center justify-center">
+                  <i data-lucide="user" class="w-4 h-4 text-[#10B981]"></i>
+                </div>
+                <div class="flex flex-col leading-none gap-0.5">
+                  <span class="text-xs font-semibold text-white">{{ user.first_name|default:user.username }}</span>
+                  <span class="badge-customer"><i data-lucide="user-check" class="w-2.5 h-2.5"></i> Customer</span>
+                </div>
+              </a>
+            {% endif %}
+
+            <!-- Logout (shared) -->
+            <form method="post" action="{% url 'accounts:logout' %}" class="inline">
+              {% csrf_token %}
+              <button type="submit"
+                      class="btn-ripple px-4 py-2 text-sm font-semibold rounded-lg bg-white/5 hover:bg-red-500/10 text-slate-300 hover:text-red-400 border border-white/10 hover:border-red-500/30 transition-all duration-200">
+                Log Out
+              </button>
+            </form>
+
+          {% else %}
+          <!-- ── Unauthenticated ──────────────────────────────────────── -->
+            <a href="{% url 'features' %}"   class="text-sm font-medium text-slate-300 hover:text-[#10B981] transition-colors duration-200">Features</a>
+            <a href="{% url 'marketplace' %}" class="text-sm font-medium text-slate-300 hover:text-[#10B981] transition-colors duration-200">Marketplace</a>
+            <a href="{% url 'accounts:login' %}"
+               class="btn-ripple px-5 py-2.5 text-sm font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all duration-200 hover:scale-105">
+              Log In
+            </a>
+            <a href="{% url 'accounts:register' %}"
+               class="btn-ripple px-5 py-2.5 text-sm font-semibold rounded-lg bg-gradient-to-r from-[#10B981] to-[#059669] text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_26px_rgba(16,185,129,0.6)] transition-all duration-200 hover:scale-105">
+              Sign Up
+            </a>
+          {% endif %}
+
+        </div>
+
+        <!-- Mobile burger -->
+        <button id="mob-btn"
+                aria-label="Toggle menu"
+                aria-expanded="false"
+                aria-controls="mob-menu"
+                class="md:hidden w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all duration-200 active:scale-95">
+          <i data-lucide="menu" class="w-5 h-5 text-slate-300" id="mob-icon"></i>
+        </button>
+      </div>
+
+      <!-- Mobile menu (CSS-animated slide) -->
+      <div id="mob-menu" role="navigation" aria-label="Mobile navigation">
+        <div class="pb-5 pt-3 space-y-1">
+
+          {% if user.is_authenticated %}
+
+            {% if user.account.is_merchant %}
+              <div class="flex items-center gap-2 px-4 py-3 mb-1 rounded-xl bg-[#818cf8]/5 border border-[#818cf8]/10 mx-1">
+                <div class="w-8 h-8 rounded-full bg-[#818cf8]/20 flex items-center justify-center shrink-0">
+                  <i data-lucide="store" class="w-4 h-4 text-[#818cf8]"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-white">{{ user.first_name|default:user.username }}</p>
+                  <p class="text-xs text-[#818cf8]">Merchant Account</p>
+                </div>
+              </div>
+              <a href="{% url 'marketplace' %}"              class="mob-link hover:text-[#10B981]">Marketplace</a>
+              <a href="{% url 'accounts:merchant_dashboard' %}" class="mob-link hover:text-[#818cf8]">Dashboard</a>
+              <a href="{% url 'accounts:merchant_shop' %}"   class="mob-link hover:text-[#818cf8]">My Products</a>
+              <a href="{% url 'accounts:merchant_orders' %}" class="mob-link hover:text-[#818cf8]">Orders</a>
+              <a href="{% url 'accounts:merchant_shop_edit' %}" class="mob-link hover:text-[#818cf8]">Shop Settings</a>
+
+            {% else %}
+              <div class="flex items-center gap-2 px-4 py-3 mb-1 rounded-xl bg-[#10B981]/5 border border-[#10B981]/10 mx-1">
+                <div class="w-8 h-8 rounded-full bg-[#10B981]/20 flex items-center justify-center shrink-0">
+                  <i data-lucide="user" class="w-4 h-4 text-[#10B981]"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-white">{{ user.first_name|default:user.username }}</p>
+                  <p class="text-xs text-[#10B981]">Customer Account</p>
+                </div>
+              </div>
+              <a href="{% url 'home' %}"                      class="mob-link hover:text-[#10B981]">Home</a>
+              <a href="{% url 'chatbot:chat' %}"              class="mob-link hover:text-[#10B981]">🤖 AI Assistant</a>
+              <a href="{% url 'crop_disease:scan_upload' %}"  class="mob-link hover:text-[#10B981]">🌿 Disease Scanner</a>
+              <a href="{% url 'marketplace' %}"               class="mob-link hover:text-[#10B981]">Marketplace</a>
+              <a href="{% url 'accounts:user_orders' %}"      class="mob-link hover:text-[#10B981]">My Orders</a>
+              <a href="{% url 'accounts:user_profile' %}"     class="mob-link hover:text-[#10B981]">Profile</a>
+            {% endif %}
+
+            <div class="pt-2 mx-1 border-t border-white/5">
+              <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors duration-200 flex items-center gap-2">
+                  <i data-lucide="log-out" class="w-4 h-4"></i> Log Out
+                </button>
+              </form>
+            </div>
+
+          {% else %}
+            <a href="{% url 'features' %}"    class="mob-link hover:text-[#10B981]">Features</a>
+            <a href="{% url 'marketplace' %}" class="mob-link hover:text-[#10B981]">Marketplace</a>
+            <div class="flex flex-col gap-2.5 pt-3 mx-1 border-t border-white/5">
+              <a href="{% url 'accounts:login' %}"
+                 class="block px-4 py-3 rounded-xl text-sm font-semibold text-center text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-200">
+                Log In
+              </a>
+              <a href="{% url 'accounts:register' %}"
+                 class="block px-4 py-3 rounded-xl text-sm font-semibold text-center text-white bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[0_0_16px_rgba(16,185,129,0.3)] hover:shadow-[0_0_24px_rgba(16,185,129,0.5)] transition-all duration-200">
+                Sign Up Free
+              </a>
+            </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══ FLASH MESSAGES ════════════════════════════════════════════════════ -->
+  {% if messages %}
+  <div id="toast-container"
+       class="fixed top-24 right-4 z-[9999] flex flex-col gap-3 w-[calc(100vw-2rem)] max-w-sm"
+       aria-live="polite" aria-atomic="false">
+    {% for msg in messages %}
+    <div class="toast flex items-start gap-3 p-4 rounded-2xl border backdrop-blur-md shadow-2xl
+      {% if msg.tags == 'success' %}bg-[#10B981]/10 border-[#10B981]/30 text-[#10B981]
+      {% elif msg.tags == 'error'   %}bg-red-500/10   border-red-500/30   text-red-400
+      {% elif msg.tags == 'warning' %}bg-[#f59e0b]/10 border-[#f59e0b]/30 text-[#f59e0b]
+      {% else %}bg-[#38BDF8]/10 border-[#38BDF8]/30 text-[#38BDF8]{% endif %}"
+      role="alert">
+      <i data-lucide="{% if msg.tags == 'success' %}check-circle-2{% elif msg.tags == 'error' %}x-circle{% elif msg.tags == 'warning' %}alert-triangle{% else %}info{% endif %}"
+         class="w-5 h-5 shrink-0 mt-0.5"></i>
+      <p class="text-sm font-medium leading-relaxed flex-1">{{ msg }}</p>
+      <button onclick="dismissToast(this.parentElement)"
+              aria-label="Dismiss"
+              class="opacity-50 hover:opacity-100 transition-opacity shrink-0 ml-1">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+
+  <!-- ══ MAIN CONTENT ══════════════════════════════════════════════════════ -->
+  <main class="relative z-10">
+    {% block content %}{% endblock %}
+  </main>
+
+
+  <!-- ══ FOOTER ════════════════════════════════════════════════════════════ -->
+  {% block footer %}
+  <footer class="relative z-10 border-t border-white/[0.07] bg-gradient-to-b from-[#020617] to-[#010411] pt-14 pb-8 mt-8">
+    <!-- top glow line -->
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-[#10B981]/30 to-transparent"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+
+        <!-- Brand col -->
+        <div class="sm:col-span-2">
+          <a href="{% url 'home' %}" class="flex items-center gap-2 mb-4">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#10B981] to-[#065F46] flex items-center justify-center">
+              <i data-lucide="leaf" class="w-4 h-4 text-white"></i>
+            </div>
+            <span class="text-xl font-bold text-white">Agro<span class="text-[#10B981]">Sense</span></span>
+          </a>
+          <p class="text-sm text-slate-400 leading-relaxed max-w-xs">Empowering farmers worldwide with AI-driven crop intelligence, disease detection, and smart marketplace solutions.</p>
+          
+        </div>
+
+        <!-- Product col -->
+        <div>
+          <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Product</h4>
+          <ul class="space-y-3">
+            {% if user.is_authenticated and user.account.is_merchant %}
+              <li><a href="{% url 'accounts:merchant_dashboard' %}" class="footer-link">Merchant Dashboard</a></li>
+              <li><a href="{% url 'accounts:merchant_shop' %}"      class="footer-link">My Products</a></li>
+            {% else %}
+              <li><a href="{% url 'features' %}"    class="footer-link">Features</a></li>
+              <li><a href="{% url 'marketplace' %}" class="footer-link">Marketplace</a></li>
+              {% if user.is_authenticated %}
+              <li><a href="{% url 'accounts:user_dashboard' %}" class="footer-link">Dashboard</a></li>
+              {% endif %}
+            {% endif %}
+          </ul>
+        </div>
+
+        <!-- Company col -->
+        <div>
+          <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Company</h4>
+          <ul class="space-y-3">
+            <li><a href="#" class="footer-link">About Us</a></li>
+            <li><a href="#" class="footer-link">Privacy Policy</a></li>
+            <li><a href="#" class="footer-link">Contact</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- Bottom bar -->
+      <div class="border-t border-white/[0.06] pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <p class="text-sm text-slate-500 font-medium">&copy; {% now "Y" %} AgroSense. All rights reserved by Team Solo.</p>
+        <p class="text-xs text-slate-600">Built with <span class="text-[#10B981]">♥</span> using Django &amp; Tailwind CSS</p>
+      </div>
+    </div>
+  </footer>
+  {% endblock %}
+
+
+  <!-- ══ UTILITY STYLES (injected via JS-side class) ════════════════════════ -->
+  <style>
+    .mob-link {
+      display: flex; align-items: center;
+      padding: .6rem 1rem;
+      border-radius: .75rem;
+      font-size: .875rem; font-weight: 500;
+      color: #cbd5e1;
+      transition: background .18s, color .18s, padding-left .18s;
+    }
+    .mob-link:hover {
+      background: rgba(255,255,255,.04);
+      padding-left: 1.35rem;
+    }
+    .footer-link {
+      font-size: .875rem; color: #94a3b8;
+      transition: color .2s;
+    }
+    .footer-link:hover { color: #10B981; }
+  </style>
+
+
+  <!-- ══ BASE SCRIPTS ══════════════════════════════════════════════════════ -->
+  <script>
+  (() => {
+    'use strict';
+
+    /* ── Init Lucide icons ──────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initAll();
+    });
+
+    function initAll() {
+      initScrollBar();
+      initNavScroll();
+      initMobileMenu();
+      initToastAutoDismiss();
+      initParticles();
+      initCursorGlow();
+      initReveal();
+    }
+
+    /* ── Scroll progress bar ────────────────────────────────────────────── */
+    function initScrollBar() {
+      const bar = document.getElementById('scroll-bar');
+      if (!bar) return;
+      function update() {
+        const el = document.documentElement;
+        const pct = (el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100;
+        bar.style.width = Math.min(pct, 100) + '%';
+      }
+      window.addEventListener('scroll', update, { passive: true });
+      update();
+    }
+
+    /* ── Navbar scroll state ────────────────────────────────────────────── */
+    function initNavScroll() {
+      const nav = document.getElementById('main-nav');
+      if (!nav) return;
+      function update() {
+        nav.classList.toggle('scrolled', window.scrollY > 20);
+      }
+      window.addEventListener('scroll', update, { passive: true });
+      update();
+    }
+
+    /* ── Mobile menu (smooth slide) ─────────────────────────────────────── */
+    function initMobileMenu() {
+      const btn  = document.getElementById('mob-btn');
+      const menu = document.getElementById('mob-menu');
+      const icon = document.getElementById('mob-icon');
+      if (!btn || !menu) return;
+
+      let open = false;
+      btn.addEventListener('click', () => {
+        open = !open;
+        menu.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open);
+        icon.setAttribute('data-lucide', open ? 'x' : 'menu');
+        lucide.createIcons();
+      });
+
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (open && !btn.contains(e.target) && !menu.contains(e.target)) {
+          open = false;
+          menu.classList.remove('open');
+          btn.setAttribute('aria-expanded', 'false');
+          icon.setAttribute('data-lucide', 'menu');
+          lucide.createIcons();
+        }
+      });
+    }
+
+    /* ── Toast dismiss ──────────────────────────────────────────────────── */
+    window.dismissToast = function(el) {
+      el.classList.add('dismissing');
+      setTimeout(() => el.remove(), 340);
+    };
+
+    function initToastAutoDismiss() {
+      setTimeout(() => {
+        document.querySelectorAll('.toast').forEach(el => dismissToast(el));
+      }, 5000);
+    }
+
+    /* ── Particles ──────────────────────────────────────────────────────── */
+    function initParticles() {
+      const container = document.getElementById('particle-container');
+      if (!container) return;
+
+      const cfg = [
+        { color: '#10B981', count: 12, type: 'round'  },
+        { color: '#38BDF8', count:  6, type: 'round'  },
+        { color: '#065F46', count:  8, type: 'leaf'   },
+        { color: '#818cf8', count:  4, type: 'round'  },
+      ];
+
+      cfg.forEach(({ color, count, type }) => {
+        for (let i = 0; i < count; i++) {
+          const el = document.createElement('div');
+          const size   = type === 'leaf'
+            ? (Math.random() * 6 + 4)
+            : (Math.random() * 4 + 2);
+          const dur    = (Math.random() * 6 + 4).toFixed(1);
+          const delay  = -(Math.random() * 6).toFixed(1);
+          const rot    = Math.floor(Math.random() * 360);
+          const opac   = (Math.random() * .25 + .05).toFixed(2);
+
+          el.className = `particle${type === 'leaf' ? ' leaf' : ''}`;
+          el.style.cssText = [
+            `width:${size}px`,
+            `height:${size}px`,
+            `background:${color}`,
+            `left:${(Math.random() * 98 + 1).toFixed(1)}%`,
+            `top:${(Math.random() * 98 + 1).toFixed(1)}%`,
+            `opacity:${opac}`,
+            `--dur:${dur}s`,
+            `--delay:-${delay}s`,
+            `--rot:${rot}deg`,
+          ].join(';');
+          container.appendChild(el);
+        }
+      });
+    }
+
+    /* ── Cursor glow (desktop / pointer:fine only) ──────────────────────── */
+    function initCursorGlow() {
+      const glow = document.getElementById('cursor-glow');
+      if (!glow) return;
+      if (!window.matchMedia('(pointer:fine)').matches) return;
+
+      let mouseX = -999, mouseY = -999;
+      let glowX = -999, glowY = -999;
+      let raf;
+
+      document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        glow.style.opacity = '1';
+      }, { passive: true });
+
+      document.addEventListener('mouseleave', () => {
+        glow.style.opacity = '0';
+      });
+
+      function lerp(a, b, t) { return a + (b - a) * t; }
+
+      function animate() {
+        glowX = lerp(glowX, mouseX, .09);
+        glowY = lerp(glowY, mouseY, .09);
+        glow.style.left = glowX + 'px';
+        glow.style.top  = glowY + 'px';
+        raf = requestAnimationFrame(animate);
+      }
+      animate();
+    }
+
+    /* ── Scroll reveal (IntersectionObserver) ───────────────────────────── */
+    function initReveal() {
+      if (!('IntersectionObserver' in window)) {
+        // Fallback: show all immediately
+        document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => {
+          el.classList.add('visible');
+        });
+        return;
+      }
+
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            io.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+      document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => io.observe(el));
+    }
+
+  })();
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Notifications – AgroSense{% endblock %}
+
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-2xl mx-auto">
+
+  <div class="flex items-center gap-3 mb-6 animate-fade-in">
+    <div class="w-11 h-11 rounded-xl bg-[#10B981]/15 flex items-center justify-center">
+      <i data-lucide="bell" class="w-5 h-5 text-[#10B981]"></i>
+    </div>
+    <h1 class="text-2xl font-extrabold text-white">Notifications</h1>
+  </div>
+
+  {% if notifications %}
+  <div class="space-y-3">
+    {% for notif in notifications %}
+    <div class="glass-card rounded-2xl p-4 flex items-start gap-3 animate-fade-in
+                {% if not notif.is_read %}border-[#10B981]/20{% endif %}">
+      <div class="w-8 h-8 rounded-full
+                  {% if not notif.is_read %}bg-[#10B981]/15{% else %}bg-white/5{% endif %}
+                  flex items-center justify-center shrink-0 text-sm">
+        {% if "confirmed" in notif.message|lower %}🎉
+        {% elif "shipped" in notif.message|lower %}🚚
+        {% elif "delivered" in notif.message|lower %}📬
+        {% elif "cancelled" in notif.message|lower or "rejected" in notif.message|lower %}❌
+        {% elif "new order" in notif.message|lower %}🛒
+        {% else %}🔔{% endif %}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-{% if not notif.is_read %}white{% else %}slate-400{% endif %}">
+          {{ notif.message }}
+        </p>
+        <p class="text-xs text-slate-600 mt-1">{{ notif.created_at|date:"N j, Y · g:i A" }}</p>
+      </div>
+      {% if not notif.is_read %}
+      <div class="w-2 h-2 rounded-full bg-[#10B981] shrink-0 mt-2"></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="glass-card rounded-3xl p-14 text-center">
+    <div class="w-16 h-16 rounded-2xl bg-[#10B981]/10 flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="bell-off" class="w-8 h-8 text-[#10B981]"></i>
+    </div>
+    <h2 class="text-lg font-bold text-white mb-2">All caught up!</h2>
+    <p class="text-slate-500 text-sm">You have no notifications yet.</p>
+  </div>
+  {% endif %}
+
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,848 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AgroSense AI Assistant{% endblock %}
+
+{# ── Kill the footer — chat is a full-viewport shell ──────────────────── #}
+{% block footer %}{% endblock %}
+
+{% block extra_inline_css %}
+
+/*
+ * LAYOUT STRATEGY
+ * ---------------
+ * .chat-layout uses position:fixed so it is completely detached from the
+ * normal document flow.  This means:
+ *   • the footer never appears (we also empty the footer block)
+ *   • body scroll never interferes
+ *   • the shell is always exactly [navbar-bottom → viewport-bottom]
+ *
+ * --nav-h is re-declared here at 80px for EVERY breakpoint because the
+ * base.html navbar uses h-20 (= 80px Tailwind) on all viewport sizes.
+ * The base.html media-query that drops it to 68px is wrong for this
+ * project and is intentionally overridden below.
+ */
+
+/* ── Prevent body scroll on the chat page ──────────────────────────────── */
+html, body { overflow: hidden; height: 100%; }
+
+/* ── Correct nav-height for all viewports ──────────────────────────────── */
+:root { --nav-h: 80px; }
+@media (max-width: 640px) { :root { --nav-h: 80px; } }
+
+/* ── Chat shell: fixed, starts exactly at navbar bottom ────────────────── */
+.chat-layout {
+  position: fixed;
+  top: var(--nav-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  overflow: hidden;
+  z-index: 20;          /* above grain/particles (0-1), below navbar (50) */
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.chat-sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  background: rgba(4, 37, 20, 0.6);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-right: 1px solid rgba(16, 185, 129, 0.14);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow  0.28s ease;
+}
+
+.session-list::-webkit-scrollbar { width: 4px; }
+.session-list::-webkit-scrollbar-track { background: transparent; }
+.session-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+
+.session-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.83rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 3px solid transparent;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, padding-left 0.15s;
+}
+.session-item:hover {
+  background: rgba(16, 185, 129, 0.08);
+  color: #e2e8f0;
+  padding-left: 20px;
+}
+.session-item.active {
+  background: rgba(16, 185, 129, 0.13);
+  color: #10B981;
+  font-weight: 600;
+  border-left-color: #10B981;
+}
+
+/* ── Messages scrollable area ───────────────────────────────────────────── */
+.messages-area::-webkit-scrollbar { width: 5px; }
+.messages-area::-webkit-scrollbar-track { background: transparent; }
+.messages-area::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: 9999px;
+}
+
+/* ── AI bubble: markdown rendering ─────────────────────────────────────── */
+.ai-bubble h2, .ai-bubble h3 {
+  color: #10B981; font-size: 1rem; margin: 10px 0 4px; font-weight: 700;
+}
+.ai-bubble h4 { color: #38BDF8; font-size: 0.9rem; margin: 8px 0 3px; font-weight: 600; }
+.ai-bubble ul, .ai-bubble ol { padding-left: 20px; margin: 6px 0; }
+.ai-bubble li  { margin-bottom: 3px; }
+.ai-bubble strong { color: #f1f5f9; }
+.ai-bubble em     { color: #cbd5e1; }
+.ai-bubble code   {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38BDF8;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.87em;
+}
+.ai-bubble pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.ai-bubble pre code { background: none; padding: 0; color: #e2e8f0; }
+.ai-bubble hr { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); margin: 10px 0; }
+.ai-bubble a  { color: #38BDF8; text-decoration: underline; }
+.ai-bubble p  { margin: 0 0 6px; }
+.ai-bubble p:last-child { margin-bottom: 0; }
+.ai-bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  margin: 8px 0;
+}
+.ai-bubble th {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+  padding: 6px 10px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ai-bubble td {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+.ai-bubble tr:nth-child(even) td { background: rgba(255, 255, 255, 0.02); }
+
+/* ── Typing animation ───────────────────────────────────────────────────── */
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40%           { transform: translateY(-5px); }
+}
+.typing-dot {
+  width: 6px; height: 6px;
+  background: #10B981;
+  border-radius: 50%;
+  animation: typingBounce 0.8s ease infinite;
+  display: inline-block;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.30s; }
+
+/* ── Product cards ──────────────────────────────────────────────────────── */
+.product-cards { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.product-card  {
+  background: rgba(4, 37, 20, 0.75);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  border-radius: 12px;
+  padding: 12px;
+  width: 158px;
+  font-size: 0.82rem;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.product-card:hover { border-color: rgba(16, 185, 129, 0.5); transform: translateY(-2px); }
+.pc-name   { font-weight: 600; color: #f1f5f9; margin-bottom: 4px; font-size: 0.84rem; line-height: 1.3; }
+.pc-price  { color: #10B981; font-weight: 700; font-size: 0.95rem; }
+.pc-rating { color: #fbbf24; font-size: 0.77rem; margin-top: 2px; }
+.pc-stock  { font-size: 0.72rem; margin-top: 3px; }
+.pc-in  { color: #10B981; }
+.pc-out { color: #f87171; }
+
+/* ── Message input textarea ─────────────────────────────────────────────── */
+#msgInput {
+  resize: none;
+  max-height: 120px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  line-height: 1.55;
+  font-family: inherit;
+}
+#msgInput:focus {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+}
+#msgInput::placeholder { color: #475569; }
+
+/* ── Quick prompts — horizontal scroll on mobile ────────────────────────── */
+.prompts-bar {
+  display: flex;
+  gap: 7px;
+  padding: 8px 16px 6px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.prompts-bar::-webkit-scrollbar { display: none; }
+
+/* ── Input bar (respects iPhone home bar) ───────────────────────────────── */
+.input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(16, 185, 129, 0.1);
+  background: rgba(4, 37, 20, 0.35);
+  flex-shrink: 0;
+}
+
+/* ── Mobile sidebar backdrop overlay ───────────────────────────────────── */
+/*
+ * top: var(--nav-h) so the overlay starts BELOW the navbar, not on top of
+ * it.  The navbar (z-50) always stays clickable above the overlay (z-39).
+ */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: var(--nav-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 39;
+}
+.sidebar-overlay.open { display: block; }
+
+/* ── Responsive: mobile sidebar becomes a slide-over drawer ─────────────── */
+@media (max-width: 767px) {
+  .chat-sidebar {
+    /* Override the flex-child behaviour — become a fixed overlay drawer */
+    position: fixed;
+    top: var(--nav-h);   /* starts below the navbar, not behind it */
+    left: 0;
+    bottom: 0;
+    z-index: 40;         /* above overlay (39), below navbar (50) */
+    transform: translateX(-100%);
+    width: 280px;
+    box-shadow: none;
+  }
+  .chat-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Show the in-chat mobile top-bar */
+  .chat-topbar { display: flex !important; }
+
+  .product-card { width: 140px; }
+}
+
+/* ── Desktop message gutter widths ──────────────────────────────────────── */
+@media (min-width: 768px)  { .messages-area { padding: 20px 24px; } }
+@media (min-width: 1280px) { .messages-area { padding: 24px 32px; } }
+
+{% endblock %}
+
+
+{% block content %}
+
+{# Mobile sidebar backdrop — sits above chat-layout, below drawer #}
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     CHAT SHELL
+     position:fixed, top:var(--nav-h) → always starts below the fixed navbar,
+     never behind it, never behind body scroll.
+════════════════════════════════════════════════════════════════════════ -->
+<div class="chat-layout" id="chatLayout">
+
+  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <aside class="chat-sidebar" id="chatSidebar" aria-label="Conversation history">
+
+    <!-- Sidebar header -->
+    <div class="flex items-center justify-between px-4 py-4 flex-shrink-0"
+         style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <h3 class="text-sm font-bold text-white flex items-center gap-2">
+        <i data-lucide="message-square" class="w-4 h-4 text-[#10B981]"></i>
+        Conversations
+      </h3>
+      <button onclick="newSession()"
+              class="px-3 py-1.5 rounded-lg
+                     bg-gradient-to-r from-[#10B981] to-[#059669]
+                     text-white text-xs font-bold
+                     hover:shadow-[0_0_14px_rgba(16,185,129,0.5)]
+                     active:scale-95 transition-all duration-200">
+        + New
+      </button>
+    </div>
+
+    <!-- Session list -->
+    <div class="session-list flex-1 overflow-y-auto" id="sessionList" role="list">
+      {% for s in sessions %}
+      <div class="session-item {% if s.pk == session.pk %}active{% endif %}"
+           role="listitem"
+           data-id="{{ s.pk }}"
+           onclick="loadSession({{ s.pk }})">
+        {{ s.title|truncatechars:30 }}
+      </div>
+      {% empty %}
+      <p class="px-4 py-8 text-xs text-slate-600 text-center select-none">
+        No conversations yet.<br>Start one above ↑
+      </p>
+      {% endfor %}
+    </div>
+
+  </aside>
+
+
+  <!-- ══════════════ MAIN CHAT AREA ══════════════ -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-hidden"
+        style="background: rgba(2, 6, 23, 0.93);"
+        aria-label="Chat area">
+
+    <!-- Mobile top-bar (hidden on md+, shown via CSS on ≤767px) -->
+    <div class="chat-topbar hidden items-center gap-3 px-4 py-3 flex-shrink-0"
+         style="border-bottom: 1px solid rgba(255,255,255,0.05);
+                background: rgba(2,6,23,0.75);">
+      <button onclick="toggleSidebar()"
+              aria-label="Open conversations"
+              class="w-9 h-9 rounded-lg bg-white/5 border border-white/10
+                     flex items-center justify-center flex-shrink-0
+                     hover:bg-white/10 active:scale-95 transition-all duration-150">
+        <i data-lucide="panel-left" class="w-4 h-4 text-slate-300"></i>
+      </button>
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#10B981] to-[#065F46]
+                    flex items-center justify-center flex-shrink-0">
+          <i data-lucide="leaf" class="w-3.5 h-3.5 text-white"></i>
+        </div>
+        <span class="text-sm font-semibold text-white truncate">AgroSense AI</span>
+      </div>
+      <span class="ml-auto text-xs text-slate-500 truncate max-w-[110px]"
+            id="mobileSessionTitle">
+        {{ session.title|truncatechars:18 }}
+      </span>
+    </div>
+
+
+    <!-- ── Messages ── -->
+    <div class="messages-area flex-1 overflow-y-auto px-4 sm:px-6 py-5
+                flex flex-col gap-4"
+         id="messagesArea"
+         role="log"
+         aria-live="polite"
+         aria-label="Chat messages">
+
+      {% if not session.messages.exists %}
+      <!-- Welcome screen — JS removes it on first message -->
+      <div class="flex flex-col items-center justify-center h-full text-center px-6"
+           id="welcomeScreen">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#10B981] to-[#065F46]
+                    flex items-center justify-center mb-5
+                    shadow-[0_0_40px_rgba(16,185,129,0.25)]">
+          <i data-lucide="bot" class="w-10 h-10 text-white"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-3">AgroSense AI Assistant</h2>
+        <p class="text-slate-400 text-sm max-w-sm leading-relaxed mb-8">
+          Your AI agricultural expert. Ask about crops, diseases, fertilizers,
+          market prices, and more.
+        </p>
+        <div class="flex flex-wrap justify-center gap-2 max-w-md">
+          <span class="text-xs px-3 py-1.5 rounded-full bg-[#10B981]/10 border border-[#10B981]/25 text-[#10B981]">🔬 Disease Detection</span>
+          <span class="text-xs px-3 py-1.5 rounded-full bg-[#38BDF8]/10 border border-[#38BDF8]/25 text-[#38BDF8]">⚖️ Product Comparison</span>
+          <span class="text-xs px-3 py-1.5 rounded-full bg-[#fbbf24]/10 border border-[#fbbf24]/25 text-[#fbbf24]">📦 Marketplace</span>
+          <span class="text-xs px-3 py-1.5 rounded-full bg-[#818cf8]/10 border border-[#818cf8]/25 text-[#818cf8]">🌾 Crop Advice</span>
+        </div>
+      </div>
+      {% endif %}
+
+      {#
+        Existing messages in this session are rendered by the DOMContentLoaded
+        handler below via INITIAL_MESSAGES (a JSON array injected by Django).
+        This avoids duplicating the JS bubble templates in server-side markup
+        while still giving users their history immediately on page load.
+      #}
+
+    </div>
+
+
+    <!-- ── Quick Prompts ── -->
+    <div class="prompts-bar" aria-label="Quick prompts">
+      <button class="flex-shrink-0 px-3 py-1.5 rounded-full
+                     bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981]
+                     text-xs font-medium hover:bg-[#10B981]/20 active:scale-95
+                     transition-all duration-150 whitespace-nowrap"
+              onclick="fillInput('Show fungicides for rice blast under 500 BDT')">
+        🔍 Rice blast fungicides
+      </button>
+      <button class="flex-shrink-0 px-3 py-1.5 rounded-full
+                     bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981]
+                     text-xs font-medium hover:bg-[#10B981]/20 active:scale-95
+                     transition-all duration-150 whitespace-nowrap"
+              onclick="fillInput('Best fertilizer for tomato plants?')">
+        🌿 Tomato fertilizer
+      </button>
+      <button class="flex-shrink-0 px-3 py-1.5 rounded-full
+                     bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981]
+                     text-xs font-medium hover:bg-[#10B981]/20 active:scale-95
+                     transition-all duration-150 whitespace-nowrap"
+              onclick="fillInput('Compare urea and DAP fertilizer')">
+        ⚖️ Compare fertilizers
+      </button>
+      <button class="flex-shrink-0 px-3 py-1.5 rounded-full
+                     bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981]
+                     text-xs font-medium hover:bg-[#10B981]/20 active:scale-95
+                     transition-all duration-150 whitespace-nowrap"
+              onclick="fillInput('What crop should I plant this season in Bangladesh?')">
+        🌾 Seasonal advice
+      </button>
+      {% if is_merchant %}
+      <button class="flex-shrink-0 px-3 py-1.5 rounded-full
+                     bg-[#818cf8]/10 border border-[#818cf8]/20 text-[#818cf8]
+                     text-xs font-medium hover:bg-[#818cf8]/20 active:scale-95
+                     transition-all duration-150 whitespace-nowrap"
+              onclick="fillInput('What are my top selling products this month?')">
+        📊 Top products
+      </button>
+      <button class="flex-shrink-0 px-3 py-1.5 rounded-full
+                     bg-[#818cf8]/10 border border-[#818cf8]/20 text-[#818cf8]
+                     text-xs font-medium hover:bg-[#818cf8]/20 active:scale-95
+                     transition-all duration-150 whitespace-nowrap"
+              onclick="fillInput('What products should I stock next month?')">
+        📦 Stock forecast
+      </button>
+      {% endif %}
+    </div>
+
+
+    <!-- ── Input Bar ── -->
+    <div class="input-bar">
+      <textarea
+        id="msgInput"
+        rows="1"
+        class="flex-1 px-4 py-3 rounded-2xl text-sm"
+        placeholder="Ask about crops, diseases, products, prices…"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+        aria-label="Message input"
+        autocomplete="off"
+        spellcheck="true"></textarea>
+
+      <button id="sendBtn"
+              onclick="sendMessage()"
+              aria-label="Send message"
+              class="w-11 h-11 rounded-xl bg-gradient-to-r from-[#10B981] to-[#059669]
+                     flex items-center justify-center flex-shrink-0
+                     hover:shadow-[0_0_18px_rgba(16,185,129,0.55)]
+                     active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed
+                     transition-all duration-200">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </div>
+
+  </main>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script>
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CONFIG — values injected from Django context
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const SESSION_ID  = {{ session.pk }};
+const IS_MERCHANT = {{ is_merchant|yesno:"true,false" }};
+const SEND_URL    = "{% url 'chatbot:send_message' %}";
+const NEW_URL     = "{% url 'chatbot:new_session' %}";
+const HIST_BASE   = "/chat/session/";
+const CSRF        = "{{ csrf_token }}";
+
+/*
+ * INITIAL_MESSAGES — existing messages for this session, rendered from
+ * Django so history is available on first paint without an extra round-trip.
+ * escapejs handles all special chars, newlines, and emoji safely.
+ */
+const INITIAL_MESSAGES = [
+  {% for msg in session.messages.all %}
+  {
+    role:      "{{ msg.role|escapejs }}",
+    content:   "{{ msg.content|escapejs }}",
+    agentType: "{{ msg.agent_type|default:''|escapejs }}"
+  }{% if not forloop.last %},{% endif %}
+  {% endfor %}
+];
+
+let currentSession = SESSION_ID;
+let sending        = false;
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MARKED SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+marked.setOptions({ breaks: true, gfm: true });
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TEXTAREA HELPERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function autoResize(el) {
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 120) + "px";
+}
+
+function handleKey(e) {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function fillInput(text) {
+  const el = document.getElementById("msgInput");
+  el.value = text;
+  el.focus();
+  autoResize(el);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MOBILE SIDEBAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function toggleSidebar() {
+  const sb   = document.getElementById("chatSidebar");
+  const ov   = document.getElementById("sidebarOverlay");
+  const open = sb.classList.toggle("open");
+  ov.classList.toggle("open", open);
+  /* Don't lock body — the chat shell already handles scroll isolation */
+}
+
+function closeSidebar() {
+  document.getElementById("chatSidebar").classList.remove("open");
+  document.getElementById("sidebarOverlay").classList.remove("open");
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSidebar(); });
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   AGENT BADGE MAP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const AGENTS = {
+  marketplace_agent:    ["🛒","Marketplace",      "#fbbf24","rgba(251,191,36,0.15)","rgba(251,191,36,0.3)"],
+  comparison_agent:     ["⚖️","Comparison",       "#38BDF8","rgba(56,189,248,0.12)","rgba(56,189,248,0.3)"],
+  review_agent:         ["⭐","Reviews",           "#f472b6","rgba(244,114,182,0.12)","rgba(244,114,182,0.3)"],
+  recommendation_agent: ["💡","Recommendations",  "#10B981","rgba(16,185,129,0.15)","rgba(16,185,129,0.3)"],
+  merchant_agent:       ["📊","Merchant AI",      "#818cf8","rgba(129,140,248,0.15)","rgba(129,140,248,0.3)"],
+  analytics_agent:      ["📈","Analytics",        "#818cf8","rgba(129,140,248,0.15)","rgba(129,140,248,0.3)"],
+  forecast_agent:       ["🔮","Forecast",         "#fb923c","rgba(251,146,60,0.15)","rgba(251,146,60,0.3)"],
+  disease_agent:        ["🔬","Disease AI",       "#f87171","rgba(248,113,113,0.15)","rgba(248,113,113,0.3)"],
+  crop_agent:           ["🌾","AgroSense AI",     "#10B981","rgba(16,185,129,0.15)","rgba(16,185,129,0.3)"],
+};
+
+function agentBadge(type) {
+  if (!type) return "";
+  const [icon, label, color, bg, border] =
+    AGENTS[type] || ["🌿","AgroSense AI","#10B981","rgba(16,185,129,0.15)","rgba(16,185,129,0.3)"];
+  return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.7rem;
+    font-weight:700;padding:2px 10px;border-radius:9999px;margin-bottom:6px;
+    background:${bg};color:${color};border:1px solid ${border};">${icon} ${label}</span>`;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PRODUCT CARDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function renderProducts(products) {
+  if (!Array.isArray(products) || !products.length) return "";
+  const cards = products.map(p => `
+    <a href="/marketplace/product/${p.id}/" class="product-card"
+       target="_blank" rel="noopener noreferrer">
+      <div class="pc-name">${escHtml(p.name)}</div>
+      <div class="pc-price">৳${Number(p.price).toFixed(0)}</div>
+      <div class="pc-rating">
+        ${"★".repeat(Math.round(p.rating || 0))}${"☆".repeat(5 - Math.round(p.rating || 0))}
+        <span style="color:#94a3b8">(${p.review_count ?? 0})</span>
+      </div>
+      <div class="pc-stock ${p.in_stock ? "pc-in" : "pc-out"}">
+        ${p.in_stock ? "✓ In Stock" : "✗ Out of Stock"}
+      </div>
+    </a>`).join("");
+  return `<div class="product-cards">${cards}</div>`;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   RENDER A MESSAGE ROW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function appendMsg(role, text, agentType = "", products = null) {
+  /* Remove welcome screen on first message */
+  document.getElementById("welcomeScreen")?.remove();
+
+  const area = document.getElementById("messagesArea");
+  const wrap = document.createElement("div");
+
+  if (role === "ai" || role === "assistant") {
+    const html = marked.parse(text || "");
+    wrap.className = "flex gap-3 items-start max-w-3xl";
+    wrap.innerHTML = `
+      <div style="width:32px;height:32px;border-radius:10px;
+           background:linear-gradient(135deg,#10B981,#065F46);
+           display:flex;align-items:center;justify-content:center;
+           flex-shrink:0;margin-top:2px;font-size:.95rem;" aria-hidden="true">🌿</div>
+      <div style="flex:1;min-width:0;">
+        ${agentBadge(agentType)}
+        <div class="ai-bubble"
+             style="background:rgba(4,37,20,0.65);
+                    border:1px solid rgba(16,185,129,0.18);
+                    border-radius:0 16px 16px 16px;
+                    padding:12px 16px;
+                    font-size:.9rem;line-height:1.65;color:#e2e8f0;
+                    max-width:580px;word-break:break-word;">
+          ${html}${renderProducts(products)}
+        </div>
+      </div>`;
+  } else {
+    /* User bubble */
+    wrap.className = "flex gap-3 items-end justify-end max-w-3xl self-end ml-auto";
+    wrap.innerHTML = `
+      <div style="background:linear-gradient(135deg,#10B981,#059669);
+           border-radius:16px 4px 16px 16px;
+           padding:12px 16px;
+           font-size:.9rem;line-height:1.65;color:#fff;
+           max-width:520px;word-break:break-word;">
+        ${escHtml(text)}
+      </div>
+      <div style="width:32px;height:32px;border-radius:10px;
+           background:rgba(56,189,248,0.15);
+           border:1px solid rgba(56,189,248,0.25);
+           display:flex;align-items:center;justify-content:center;
+           flex-shrink:0;font-size:.95rem;" aria-hidden="true">👤</div>`;
+  }
+
+  area.appendChild(wrap);
+  area.scrollTop = area.scrollHeight;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TYPING INDICATOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function showTyping() {
+  document.getElementById("welcomeScreen")?.remove();
+  const area = document.getElementById("messagesArea");
+  const el   = document.createElement("div");
+  el.id        = "typingIndicator";
+  el.className = "flex gap-3 items-start";
+  el.setAttribute("aria-label", "AI is typing");
+  el.innerHTML = `
+    <div style="width:32px;height:32px;border-radius:10px;
+         background:linear-gradient(135deg,#10B981,#065F46);
+         display:flex;align-items:center;justify-content:center;
+         flex-shrink:0;font-size:.95rem;" aria-hidden="true">🌿</div>
+    <div style="background:rgba(4,37,20,0.65);border:1px solid rgba(16,185,129,0.18);
+         border-radius:0 16px 16px 16px;padding:12px 16px;
+         display:flex;gap:5px;align-items:center;">
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+    </div>`;
+  area.appendChild(el);
+  area.scrollTop = area.scrollHeight;
+}
+
+function hideTyping() {
+  document.getElementById("typingIndicator")?.remove();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SEND MESSAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+async function sendMessage() {
+  if (sending) return;
+  const input = document.getElementById("msgInput");
+  const text  = input.value.trim();
+  if (!text) return;
+
+  const btn    = document.getElementById("sendBtn");
+  sending      = true;
+  btn.disabled = true;
+
+  input.value = "";
+  autoResize(input);
+  appendMsg("user", text);
+  showTyping();
+
+  try {
+    const res = await fetch(SEND_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "X-CSRFToken":   CSRF,
+      },
+      body: JSON.stringify({ message: text, session_id: currentSession }),
+    });
+
+    const data = await res.json();
+    hideTyping();
+
+    if (data.success) {
+      appendMsg("ai", data.text, data.agent_type, data.products);
+      if (data.session_id && data.session_id !== currentSession) {
+        currentSession = data.session_id;
+      }
+    } else {
+      appendMsg("ai", "⚠️ " + (data.error || "An error occurred. Please try again."));
+    }
+  } catch (err) {
+    hideTyping();
+    appendMsg("ai", "⚠️ Connection error. Please check your internet and try again.");
+    console.error("Chat send error:", err);
+  } finally {
+    sending      = false;
+    btn.disabled = false;
+    input.focus();
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SESSION MANAGEMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+async function newSession() {
+  try {
+    const res  = await fetch(NEW_URL, { method: "POST", headers: { "X-CSRFToken": CSRF } });
+    const data = await res.json();
+    currentSession = data.session_id;
+
+    /* Clear messages area, show fresh welcome screen */
+    const area = document.getElementById("messagesArea");
+    area.innerHTML = `
+      <div class="flex flex-col items-center justify-center h-full text-center px-6"
+           id="welcomeScreen">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#10B981] to-[#065F46]
+                    flex items-center justify-center mb-5
+                    shadow-[0_0_40px_rgba(16,185,129,0.25)]">
+          <i data-lucide="bot" class="w-10 h-10 text-white"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-2">New Conversation</h2>
+        <p class="text-slate-400 text-sm max-w-sm leading-relaxed">
+          How can I help you today?
+        </p>
+      </div>`;
+    lucide.createIcons();
+
+    document.querySelectorAll(".session-item").forEach(el => el.classList.remove("active"));
+    closeSidebar();
+
+    /* Reload to update sidebar session list */
+    window.location.reload();
+  } catch (err) {
+    console.error("New session error:", err);
+  }
+}
+
+async function loadSession(id) {
+  try {
+    const res  = await fetch(`${HIST_BASE}${id}/`);
+    const data = await res.json();
+
+    currentSession = id;
+    const area = document.getElementById("messagesArea");
+    area.innerHTML = "";
+
+    /* Update mobile title */
+    const titleEl = document.getElementById("mobileSessionTitle");
+    if (titleEl && data.title) {
+      titleEl.textContent = data.title.substring(0, 18) + (data.title.length > 18 ? "…" : "");
+    }
+
+    if (data.messages && data.messages.length) {
+      data.messages.forEach(m =>
+        appendMsg(m.role === "user" ? "user" : "ai", m.content, m.agent_type || "")
+      );
+    } else {
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full text-center px-6"
+             id="welcomeScreen">
+          <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#10B981] to-[#065F46]
+                      flex items-center justify-center mb-5
+                      shadow-[0_0_40px_rgba(16,185,129,0.25)]">
+            <i data-lucide="bot" class="w-10 h-10 text-white"></i>
+          </div>
+          <h2 class="text-2xl font-bold text-white mb-2">Start a Conversation</h2>
+          <p class="text-slate-400 text-sm max-w-sm leading-relaxed">
+            Ask me anything about crops, diseases, or products.
+          </p>
+        </div>`;
+      lucide.createIcons();
+    }
+
+    document.querySelectorAll(".session-item").forEach(el => {
+      el.classList.toggle("active", String(el.dataset.id) === String(id));
+    });
+
+    closeSidebar();
+  } catch (err) {
+    console.error("Load session error:", err);
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   UTILITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,  "&amp;")
+    .replace(/</g,  "&lt;")
+    .replace(/>/g,  "&gt;")
+    .replace(/"/g,  "&quot;")
+    .replace(/'/g,  "&#39;");
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   INITIALISE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.addEventListener("DOMContentLoaded", () => {
+  /*
+   * Render any existing messages from the current session.
+   * INITIAL_MESSAGES is populated by Django above — safe to rely on.
+   */
+  if (INITIAL_MESSAGES.length > 0) {
+    INITIAL_MESSAGES.forEach(m =>
+      appendMsg(m.role === "user" ? "user" : "ai", m.content, m.agentType)
+    );
+  }
+
+  /* Scroll to the latest message */
+  const area = document.getElementById("messagesArea");
+  if (area) area.scrollTop = area.scrollHeight;
+
+  /* Focus input so user can type right away */
+  document.getElementById("msgInput")?.focus();
+});
+</script>
+{% endblock %}

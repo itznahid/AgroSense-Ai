@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Inventory – AgroSense{% endblock %}
+
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-4xl mx-auto">
+
+  <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-[#f59e0b]/15 flex items-center justify-center">
+        <i data-lucide="boxes" class="w-5 h-5 text-[#f59e0b]"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-extrabold text-white">Inventory</h1>
+          <span class="badge-merchant"><i data-lucide="store" class="w-2.5 h-2.5"></i> Merchant</span>
+        </div>
+        <p class="text-xs text-slate-500">All your products sorted by stock level (lowest first).</p>
+      </div>
+    </div>
+    <a href="{% url 'accounts:merchant_dashboard' %}" class="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard
+    </a>
+  </div>
+
+  <!-- Alert banners -->
+  {% if out_of_stock %}
+  <div class="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center gap-3">
+    <i data-lucide="alert-circle" class="w-5 h-5 text-red-400 shrink-0"></i>
+    <p class="text-sm text-red-400 font-medium">
+      {{ out_of_stock|length }} product{{ out_of_stock|length|pluralize }} out of stock — update stock to resume selling.
+    </p>
+  </div>
+  {% endif %}
+  {% if low_stock_items %}
+  <div class="mb-6 p-4 rounded-xl bg-[#f59e0b]/10 border border-[#f59e0b]/25 flex items-center gap-3">
+    <i data-lucide="alert-triangle" class="w-5 h-5 text-[#f59e0b] shrink-0"></i>
+    <p class="text-sm text-[#f59e0b] font-medium">
+      {{ low_stock_items|length }} product{{ low_stock_items|length|pluralize }} running low — restock soon.
+    </p>
+  </div>
+  {% endif %}
+
+  {% if products %}
+  <div class="space-y-3">
+    {% for p in products %}
+    <div class="glass-card rounded-2xl p-4 flex items-center gap-4">
+      <!-- Icon/image -->
+      <div class="w-11 h-11 rounded-xl overflow-hidden shrink-0
+                  {% if p.stock == 0 %}bg-red-500/10{% elif p.stock < 10 %}bg-[#f59e0b]/10{% else %}bg-[#818cf8]/10{% endif %}
+                  flex items-center justify-center">
+        {% if p.image %}
+          <img src="{{ p.image.url }}" alt="{{ p.name }}" class="w-full h-full object-cover">
+        {% else %}
+          <span class="text-xl">{{ p.icon }}</span>
+        {% endif %}
+      </div>
+
+      <!-- Details -->
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-white text-sm truncate">{{ p.name }}</p>
+        <p class="text-xs text-slate-500">{{ p.category.name }} · {{ p.unit }}</p>
+      </div>
+
+      <!-- Stock badge -->
+      <div class="text-center shrink-0">
+        <p class="text-lg font-extrabold
+          {% if p.stock == 0 %}text-red-400
+          {% elif p.stock < 10 %}text-[#f59e0b]
+          {% else %}text-[#10B981]{% endif %}">
+          {{ p.stock }}
+        </p>
+        <p class="text-xs text-slate-500">units</p>
+      </div>
+
+      <!-- Status indicator -->
+      <div class="shrink-0">
+        {% if p.stock == 0 %}
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/20">Out of Stock</span>
+        {% elif p.stock < 10 %}
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/20">Low Stock</span>
+        {% else %}
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/20">In Stock</span>
+        {% endif %}
+      </div>
+
+      <!-- Edit link — ownership enforced at view level -->
+      <a href="{% url 'accounts:edit_product' p.pk %}"
+         class="shrink-0 w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors">
+        <i data-lucide="pencil" class="w-3.5 h-3.5 text-slate-400"></i>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="glass-card rounded-3xl p-14 text-center">
+    <i data-lucide="boxes" class="w-10 h-10 text-slate-600 mx-auto mb-3"></i>
+    <p class="text-white font-semibold mb-1">No products yet</p>
+    <p class="text-slate-500 text-sm">Add products to start tracking inventory.</p>
+  </div>
+  {% endif %}
+
+</div>
+</div>
+{% endblock %}

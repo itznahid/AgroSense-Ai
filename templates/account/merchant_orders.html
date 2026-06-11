@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Orders – AgroSense Merchant{% endblock %}
+{% block content %}
+<div class="min-h-screen pt-28 pb-16 px-4 relative z-10">
+<div class="max-w-5xl mx-auto">
+
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-[#818cf8]/15 flex items-center justify-center">
+        <i data-lucide="clipboard-list" class="w-5 h-5 text-[#818cf8]"></i>
+      </div>
+      <div>
+        <h1 class="text-2xl font-extrabold text-white">Customer Orders</h1>
+        <p class="text-xs text-slate-500">Only orders containing your products are shown.</p>
+      </div>
+    </div>
+    <a href="{% url 'accounts:merchant_dashboard' %}" class="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard
+    </a>
+  </div>
+
+  {% if orders %}
+  <div class="space-y-4">
+    {% for order in orders %}
+    <div class="glass-card rounded-2xl p-5 animate-fade-in">
+
+      <!-- Order header -->
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="font-bold text-white text-sm">Order #{{ order.pk }}</p>
+          <p class="text-xs text-slate-500 mt-0.5">
+            {{ order.created_at|date:"N j, Y · g:i A" }} ·
+            <span class="text-slate-400">{{ order.user.get_full_name|default:order.user.username }}</span>
+          </p>
+          <p class="text-xs text-slate-600 mt-0.5 flex items-center gap-1">
+            <i data-lucide="map-pin" class="w-3 h-3"></i>
+            {{ order.delivery_address|truncatechars:60 }}
+          </p>
+          {% if order.phone %}
+          <p class="text-xs text-slate-600 mt-0.5 flex items-center gap-1">
+            <i data-lucide="phone" class="w-3 h-3"></i> {{ order.phone }}
+          </p>
+          {% endif %}
+        </div>
+        <div class="text-right shrink-0">
+          <p class="font-extrabold text-[#10B981]">৳{{ order.total_amount }}</p>
+          <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold
+            {% if order.status == 'delivered'  %}bg-[#10B981]/20 text-[#10B981]
+            {% elif order.status == 'cancelled' %}bg-red-500/20   text-red-400
+            {% elif order.status == 'shipped'   %}bg-[#38BDF8]/20 text-[#38BDF8]
+            {% elif order.status == 'pending'   %}bg-[#f59e0b]/20 text-[#f59e0b]
+            {% else                             %}bg-[#818cf8]/20 text-[#818cf8]{% endif %}">
+            {{ order.get_status_display }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Order items (only this merchant's items) -->
+      <div class="mt-3 flex gap-2 flex-wrap">
+        {% for item in order.items.all %}
+        <span class="text-xs px-2 py-1 rounded-lg bg-white/5 text-slate-400">
+          {{ item.product_name }} ×{{ item.quantity }}
+          <span class="text-slate-600">(৳{{ item.product_price }})</span>
+        </span>
+        {% endfor %}
+      </div>
+
+      <!-- ── Status update form ────────────────────────────────────────── -->
+      {% if order.status != 'delivered' and order.status != 'cancelled' %}
+      <div class="mt-4 pt-4 border-t border-white/5 flex items-center gap-3 flex-wrap">
+        <span class="text-xs text-slate-500 font-medium">Update status:</span>
+        <form method="post"
+              action="{% url 'accounts:merchant_order_update' order.pk %}"
+              class="flex items-center gap-2">
+          {% csrf_token %}
+          <select name="status"
+                  class="text-xs bg-white/5 border border-white/10 text-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#818cf8]/50 transition-colors cursor-pointer">
+            {% for value, label in status_choices %}
+            <option value="{{ value }}"
+                    {% if value == order.status %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+          <button type="submit"
+                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#818cf8]/15 text-[#818cf8] hover:bg-[#818cf8]/30 border border-[#818cf8]/20 transition-all">
+            <i data-lucide="check" class="w-3 h-3 inline-block mr-1"></i> Apply
+          </button>
+        </form>
+      </div>
+      {% else %}
+      <div class="mt-3 pt-3 border-t border-white/5">
+        <span class="text-xs text-slate-600 flex items-center gap-1">
+          <i data-lucide="lock" class="w-3 h-3"></i>
+          Order is {{ order.get_status_display|lower }} — no further status changes.
+        </span>
+      </div>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="glass-card rounded-3xl p-14 text-center">
+    <div class="w-16 h-16 rounded-2xl bg-[#818cf8]/10 flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="clipboard-list" class="w-8 h-8 text-[#818cf8]"></i>
+    </div>
+    <h2 class="text-lg font-bold text-white mb-2">No orders yet</h2>
+    <p class="text-slate-500 text-sm">Orders for your products will appear here once customers start buying.</p>
+    <a href="{% url 'accounts:merchant_shop' %}" class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl bg-[#818cf8]/15 text-[#818cf8] text-sm font-semibold hover:bg-[#818cf8]/25 transition-colors">
+      <i data-lucide="package" class="w-4 h-4"></i> Manage Products
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+</div>
+{% endblock %}
