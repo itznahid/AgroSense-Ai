@@ -10,8 +10,11 @@ SECRET_KEY = os.getenv(
 )
 
 DEBUG = os.getenv("DEBUG", "True") == "True"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost 127.0.0.1 0.0.0.0").split()
-
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "agrosense-ai-production-0073.up.railway.app",
+]
 # ── Applications ──────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     "django.contrib.admin",
