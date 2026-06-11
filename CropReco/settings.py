@@ -41,6 +41,9 @@ INSTALLED_APPS = [
     # ── Enterprise AI layer ───────────────────────────────────────────────────
     "ai_engine",
     "ai_admin",
+
+
+    "pwa",
 ]
 
 MIDDLEWARE = [
@@ -131,31 +134,18 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 SESSION_COOKIE_AGE    = 86400 * 30  # 30 days
 SESSION_SAVE_EVERY_REQUEST = False
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# GEMINI MULTI-KEY CONFIGURATION
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Priority order: KEY_1 (Primary) → KEY_2 (Secondary) → KEY_3 (Emergency Backup)
-# Keys can ALSO be managed via the AI Admin dashboard (database-backed).
-# DB keys take priority over these settings when both are configured.
-#
-# Auto-failover triggers: 429, 500, 502, 503, 504, timeout, quota exhausted
-# Model fallback: gemini-2.5-flash → gemini-2.0-flash → gemini-1.5-flash
-#
-GEMINI_API_KEY_1 = os.environ.get("GEMINI_API_KEY_1", "")   # Primary
+
+GEMINI_API_KEY_1 = os.environ.get("GEMINI_API_KEY_1", "AQ.Ab8RN6IsiwN2v")   # Primary
 GEMINI_API_KEY_2 = os.environ.get("GEMINI_API_KEY_2", "")   # Secondary
 GEMINI_API_KEY_3 = os.environ.get("GEMINI_API_KEY_3", "")   # Emergency Backup
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", GEMINI_API_KEY_1)
 
-# ── Weather API (optional) ────────────────────────────────────────────────────
 WEATHER_API_KEY  = os.environ.get("WEATHER_API_KEY", "")
 WEATHER_API_BASE = "https://api.weatherapi.com/v1/current.json"
 
-# ── AI Call Log Retention ─────────────────────────────────────────────────────
 AI_CALL_LOG_RETENTION_DAYS = int(os.environ.get("AI_CALL_LOG_RETENTION_DAYS", 30))
 
-# ── Cache disabled for SQLite-only MVP deployment ─────────────────────────────
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.dummy.DummyCache",
@@ -193,3 +183,43 @@ LOGGING = {
 
 # Create logs directory
 os.makedirs(BASE_DIR / "logs", exist_ok=True)
+
+
+PWA_APP_NAME = "AgroSense AI"
+PWA_APP_DESCRIPTION = "AI Powered Smart Agriculture Platform"
+PWA_APP_THEME_COLOR = "#22c55e"
+PWA_APP_BACKGROUND_COLOR = "#ffffff"
+PWA_APP_DISPLAY = "standalone"
+PWA_APP_SCOPE = "/"
+PWA_APP_ORIENTATION = "portrait"
+PWA_APP_START_URL = "/"
+PWA_APP_STATUS_BAR_COLOR = "default"
+
+PWA_APP_ICONS = [
+    {
+        "src": "/static/images/icons/icon-192x192.png",
+        "sizes": "192x192"
+    },
+    {
+        "src": "/static/images/icons/icon-512x512.png",
+        "sizes": "512x512"
+    }
+]
+
+PWA_APP_ICONS_APPLE = [
+    {
+        "src": "/static/images/icons/icon-192x192.png",
+        "sizes": "192x192"
+    }
+]
+
+PWA_APP_DIR = "ltr"
+PWA_APP_LANG = "en-US"
+PWA_APP_DEBUG_MODE = False
+
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
