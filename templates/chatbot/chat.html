@@ -344,7 +344,7 @@ html, body { overflow: hidden; height: 100%; }
       </button>
       <div class="flex items-center gap-2 min-w-0">
         <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#10B981] to-[#065F46]
-                    flex items-center justify-center flex-shrink-0">
+                    flex items-center justify-content-center flex-shrink-0">
           <i data-lucide="leaf" class="w-3.5 h-3.5 text-white"></i>
         </div>
         <span class="text-sm font-semibold text-white truncate">AgroSense AI</span>
@@ -701,7 +701,23 @@ async function sendMessage() {
       body: JSON.stringify({ message: text, session_id: currentSession }),
     });
 
-    const data = await res.json();
+    // ── Safe JSON parse ──────────────────────────────────────────────────
+    // Django returns an HTML 500 page (not JSON) on unhandled exceptions,
+    // e.g. a missing/invalid API key.  Attempting res.json() on that HTML
+    // throws a SyntaxError and leaves the typing indicator spinning forever.
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      hideTyping();
+      appendMsg("ai", `⚠️ Server error (HTTP ${res.status}). Please try again.`);
+      sending      = false;
+      btn.disabled = false;
+      input.focus();
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────
+
     hideTyping();
 
     if (data.success) {

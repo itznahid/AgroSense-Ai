@@ -142,11 +142,10 @@ SESSION_SAVE_EVERY_REQUEST = False
 # Auto-failover triggers: 429, 500, 502, 503, 504, timeout, quota exhausted
 # Model fallback: gemini-2.5-flash → gemini-2.0-flash → gemini-1.5-flash
 #
-GEMINI_API_KEY_1 = os.environ.get("GEMINI_API_KEY_2", '')   # Secondary
-GEMINI_API_KEY_2 = os.environ.get("GEMINI_API_KEY_1", "")   # Primary
+GEMINI_API_KEY_1 = os.environ.get("GEMINI_API_KEY_1", "")   # Primary
+GEMINI_API_KEY_2 = os.environ.get("GEMINI_API_KEY_2", "")   # Secondary
 GEMINI_API_KEY_3 = os.environ.get("GEMINI_API_KEY_3", "")   # Emergency Backup
 
-# Legacy single-key fallback (for backward compatibility)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", GEMINI_API_KEY_1)
 
 # ── Weather API (optional) ────────────────────────────────────────────────────
