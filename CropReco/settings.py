@@ -10,11 +10,17 @@ SECRET_KEY = os.getenv(
 )
 
 DEBUG = os.getenv("DEBUG", "True") == "True"
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "agrosense-ai-production-0073.up.railway.app",
-]
+import os
+
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "127.0.0.1,localhost,.up.railway.app"
+).split(",")
+
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    "CSRF_TRUSTED_ORIGINS",
+    "https://agrosense-ai-production-0073.up.railway.app"
+).split(",")
 # ── Applications ──────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     "django.contrib.admin",
